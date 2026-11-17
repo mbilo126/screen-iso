@@ -30,6 +30,7 @@ struct AuditLogTests {
             AuditEvent.allCases.map(\.rawValue) == [
                 "session_started", "session_start_failed", "screen_locked", "screen_unlocked", "session_ended",
                 "session_recovered", "snapshot_discarded", "lock_failed", "precondition_failed",
+                "sleep_disabled_changed",
             ])
     }
 

@@ -213,14 +213,14 @@ private struct PowerSection: View {
                 )
             }
             Toggle(
-                "Resta sveglio a coperchio chiuso (pmset disablesleep)",
+                "Durante la sessione resta sveglio a coperchio chiuso (pmset disablesleep)",
                 isOn: Binding(
                     get: { model.configuration.keepAwakeWithLidClosed },
                     set: { model.setKeepAwakeWithLidClosed($0) }
                 )
             )
+            sleepDisabledControl
             sudoRule
-            sleepDisabledState
         }
         .disabled(model.isSessionRunning || model.isBusy)
     }
@@ -238,7 +238,7 @@ private struct PowerSection: View {
             }
         } else {
             Text(
-                "Per il coperchio chiuso serve una regola sudoers che consente solo pmset -a disablesleep 0 e 1 senza password."
+                "Per cambiare SleepDisabled serve una regola sudoers che consente solo pmset -a disablesleep 0 e 1 senza password."
             )
             .font(.callout)
             .foregroundStyle(.secondary)
@@ -250,20 +250,30 @@ private struct PowerSection: View {
     }
 
     @ViewBuilder
-    private var sleepDisabledState: some View {
-        HStack {
-            Text("SleepDisabled")
-            Spacer()
-            Text(status.sleepDisabled ? "Attivo" : "Non attivo")
-                .foregroundStyle(.secondary)
-        }
-        if status.sleepDisabled && !model.isSessionRunning {
-            NoticeLine(
-                kind: .warning,
-                text:
-                    "Lo stop è disattivato in modo permanente: il Mac non va in stop nemmeno a coperchio chiuso finché non lo riattivi."
+    private var sleepDisabledControl: some View {
+        Toggle(
+            "SleepDisabled attivo adesso, anche fuori sessione",
+            isOn: Binding(
+                get: { model.pendingSleepDisabled ?? status.sleepDisabled },
+                set: { value in Task { await model.setSleepDisabled(value) } }
             )
-            CommandSnippet(command: Labels.restoreSleepCommand, copy: model.copyToPasteboard)
+        )
+        .disabled(!status.sudoRuleInstalled)
+        if status.sleepDisabled && !model.isSessionRunning {
+            if status.sudoRuleInstalled {
+                NoticeLine(
+                    kind: .warning,
+                    text:
+                        "Lo stop è disattivato finché non spegni questo interruttore: il Mac non va in stop nemmeno a coperchio chiuso."
+                )
+            } else {
+                NoticeLine(
+                    kind: .warning,
+                    text:
+                        "Lo stop è disattivato in modo permanente: il Mac non va in stop nemmeno a coperchio chiuso. Senza la regola sudoers si riattiva dal Terminale."
+                )
+                CommandSnippet(command: Labels.restoreSleepCommand, copy: model.copyToPasteboard)
+            }
         }
     }
 }

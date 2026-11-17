@@ -22,6 +22,8 @@ final class AppModel {
     private(set) var busyAction: String?
     private(set) var saverJustInstalled = false
     private(set) var saverNeedsUpdate = false
+    /// The value just requested from the SleepDisabled switch, shown until the system status is read again.
+    private(set) var pendingSleepDisabled: Bool?
 
     @ObservationIgnored private let statusReader: SystemStatusReader
     @ObservationIgnored private let sudoersInstaller: any SudoersRuleInstalling
@@ -204,6 +206,22 @@ final class AppModel {
         await perform("Aggiornamento del salvaschermo") {
             try await self.saverInstaller.install()
         }
+    }
+
+    func setSleepDisabled(_ disabled: Bool) async {
+        actionError = nil
+        pendingSleepDisabled = disabled
+        busyAction = disabled ? "Disattivazione dello stop" : "Riattivazione dello stop"
+        defer {
+            busyAction = nil
+            pendingSleepDisabled = nil
+        }
+        do {
+            try await controller.setSleepDisabled(disabled)
+        } catch {
+            AppLog.app.error("sleep_disabled_change_failed code=\(ScreenISOError(error).code, privacy: .public)")
+        }
+        await refreshStatus()
     }
 
     func openScreenSaverSettings() {

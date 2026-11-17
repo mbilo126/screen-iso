@@ -440,6 +440,34 @@ public final class SessionController {
         Log.session.notice("snapshot_discarded id=\(discardId.uuidString, privacy: .public)")
     }
 
+    // MARK: - Manual sleep control
+
+    /// Changes `pmset disablesleep` outside a session, on explicit user request. Unlike a session, nothing restores
+    /// it: the value stays until it is changed again. Audited under its own id, since it belongs to no session.
+    public func setSleepDisabled(_ disabled: Bool) async throws {
+        guard phase == .idle else {
+            throw fail(.sessionAlreadyRunning)
+        }
+        lastError = nil
+        do {
+            guard try await lidSleep.isSudoRuleActive() else {
+                throw ScreenISOError.sudoRuleMissing
+            }
+            let previous = try await lidSleep.isSleepDisabled()
+            try await lidSleep.setSleepDisabled(disabled)
+            try auditLog.append(
+                entry(
+                    .sleepDisabledChanged,
+                    sessionId: UUID(),
+                    details: ["value": .bool(disabled), "previousValue": .bool(previous)]
+                )
+            )
+        } catch {
+            throw fail(ScreenISOError(error))
+        }
+        Log.session.notice("sleep_disabled_changed_manually value=\(disabled)")
+    }
+
     // MARK: - Helpers
 
     private struct AppliedEffects {

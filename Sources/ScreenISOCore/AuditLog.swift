@@ -10,6 +10,7 @@ public enum AuditEvent: String, Codable, CaseIterable, Sendable {
     case snapshotDiscarded = "snapshot_discarded"
     case lockFailed = "lock_failed"
     case preconditionFailed = "precondition_failed"
+    case sleepDisabledChanged = "sleep_disabled_changed"
 }
 
 /// A JSON scalar in an audit entry's `details`. Numbers are a single case because JSON does not distinguish 3 from 3.0.

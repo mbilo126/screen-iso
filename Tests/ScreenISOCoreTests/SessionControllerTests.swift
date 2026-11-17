@@ -442,6 +442,68 @@ struct SessionControllerTests {
         #expect(harness.snapshotExists)
     }
 
+    @Test("a manual change sets disablesleep, audits it and leaves it in place", arguments: [true, false])
+    func manualSleepDisabled(target: Bool) async throws {
+        let harness = try SessionHarness(lid: FakeLidSleep(sleepDisabled: !target))
+        defer { harness.cleanUp() }
+
+        try await harness.controller.setSleepDisabled(target)
+
+        #expect(harness.lid.setCalls == [target])
+        #expect(harness.lid.sleepDisabled == target)
+        #expect(harness.controller.phase == .idle)
+        #expect(harness.controller.lastError == nil)
+        #expect(!harness.snapshotExists)
+        #expect(harness.power.acquireCalls.isEmpty)
+        let entries = try harness.auditEntries()
+        #expect(entries.map(\.event) == [.sleepDisabledChanged])
+        #expect(entries.first?.details["value"] == .bool(target))
+        #expect(entries.first?.details["previousValue"] == .bool(!target))
+    }
+
+    @Test("a manual change without the sudoers rule changes nothing")
+    func manualSleepDisabledWithoutRule() async throws {
+        let harness = try SessionHarness(lid: FakeLidSleep(sudoRuleActive: false))
+        defer { harness.cleanUp() }
+
+        await #expect(throws: ScreenISOError.sudoRuleMissing) {
+            try await harness.controller.setSleepDisabled(true)
+        }
+
+        #expect(harness.lid.setCalls.isEmpty)
+        #expect(harness.controller.lastError == .sudoRuleMissing)
+        #expect(try harness.auditEntries().isEmpty)
+    }
+
+    @Test("a manual change is rejected while a session is running")
+    func manualSleepDisabledDuringSession() async throws {
+        let harness = try SessionHarness()
+        defer { harness.cleanUp() }
+        try await harness.controller.start()
+
+        await #expect(throws: ScreenISOError.sessionAlreadyRunning) {
+            try await harness.controller.setSleepDisabled(true)
+        }
+
+        #expect(harness.lid.setCalls.isEmpty)
+        #expect(!(try harness.auditEvents()).contains(.sleepDisabledChanged))
+    }
+
+    @Test("a session started after a manual change restores the manual value")
+    func sessionKeepsManualValue() async throws {
+        let harness = try SessionHarness()
+        defer { harness.cleanUp() }
+        try await harness.controller.setSleepDisabled(true)
+        var configuration = SessionConfiguration.default
+        configuration.keepAwakeWithLidClosed = true
+
+        try await harness.controller.start(configuration)
+        try await harness.controller.end()
+
+        #expect(harness.lid.sleepDisabled)
+        #expect(harness.lid.setCalls == [true, true, true])
+    }
+
     private func assertNoSideEffects(_ harness: SessionHarness) {
         #expect(harness.power.acquireCalls.isEmpty)
         #expect(harness.power.heldKinds.isEmpty)

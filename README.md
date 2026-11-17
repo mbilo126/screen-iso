@@ -88,7 +88,13 @@ Se l'app termina in modo anomalo durante una sessione, le assertion IOKit vengon
 
 "Esci" durante una sessione attiva chiude prima la sessione, così `disablesleep` viene ripristinato subito.
 
-Il pannello mostra anche lo stato corrente di `SleepDisabled`: se è attivo fuori da una sessione, avvisa che lo stop è disattivato in modo permanente e indica il comando per riattivarlo.
+### SleepDisabled fuori sessione
+
+Nella sezione Alimentazione l'interruttore "SleepDisabled attivo adesso, anche fuori sessione" esegue subito `pmset -a disablesleep 1` o `0`, senza avviare una sessione e senza bloccare lo schermo. Serve quando il Mac deve restare sveglio mentre lo si usa, anche a coperchio chiuso. Richiede la regola sudoers ed è disattivato durante una sessione.
+
+A differenza di una sessione, niente lo ripristina: il valore resta finché non si spegne l'interruttore, anche dopo aver chiuso l'app. Finché è attivo il pannello mostra un avviso. Una sessione avviata con SleepDisabled già attivo lo lascia attivo alla fine, perché ripristina il valore che ha trovato. Ogni cambio manuale viene scritto nel registro come `sleep_disabled_changed`.
+
+Senza la regola sudoers l'interruttore è disattivato; se `SleepDisabled` risulta comunque attivo (impostato dal Terminale), il pannello indica il comando per riattivare lo stop.
 
 ## Registro di audit
 
@@ -113,6 +119,7 @@ Campi comuni: `timestamp`, `event`, `sessionId` (un UUID per sessione), `details
 | `lock_failed` | `lockMode`, `errorCode`, `message`, `rolledBack`, `rollbackErrorCodes` |
 | `session_recovered` | `snapshotStartedAt`, `keepAwakeWithLidClosed`, `restoredSleepDisabled` |
 | `snapshot_discarded` | `previousErrorCode`; il `sessionId` è nuovo, perché quello originale non è leggibile |
+| `sleep_disabled_changed` | `value`, `previousValue`; cambio manuale fuori sessione, con un `sessionId` proprio |
 
 Una sessione completa produce, in ordine, `session_started`, `screen_locked`, `screen_unlocked`, `session_ended` con lo stesso `sessionId`. `lockMethod` dice quale meccanismo ha bloccato davvero lo schermo, che può differire dalla modalità scelta.
 

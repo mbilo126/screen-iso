@@ -105,6 +105,36 @@ static NSUInteger CountPixels(Frame *frame, BOOL (*predicate)(const uint8_t *)) 
     return count;
 }
 
+static NSUInteger BrightPixels(Frame *frame, NSRect area) {
+    NSUInteger count = 0;
+    CGFloat px = 1.0 / frame.scale;
+    for (CGFloat y = NSMinY(area); y < NSMaxY(area); y += px) {
+        for (CGFloat x = NSMinX(area); x < NSMaxX(area); x += px) {
+            if (Luminance([frame pixelAtPoint:NSMakePoint(x, y)]) > 128.0) {
+                count += 1;
+            }
+        }
+    }
+    return count;
+}
+
+// Horizontal extent, in points, of the pixels inside `area` that differ between two renders.
+static CGFloat DifferenceWidth(Frame *first, Frame *second, NSRect area) {
+    CGFloat px = 1.0 / first.scale;
+    CGFloat minX = CGFLOAT_MAX;
+    CGFloat maxX = -CGFLOAT_MAX;
+    for (CGFloat y = NSMinY(area); y < NSMaxY(area); y += px) {
+        for (CGFloat x = NSMinX(area); x < NSMaxX(area); x += px) {
+            NSPoint point = NSMakePoint(x, y);
+            if (memcmp([first pixelAtPoint:point], [second pixelAtPoint:point], 4) != 0) {
+                minX = MIN(minX, x);
+                maxX = MAX(maxX, x);
+            }
+        }
+    }
+    return maxX >= minX ? maxX - minX + px : 0.0;
+}
+
 #pragma mark - View helpers
 
 static ScreenISOSaverView *MakeView(Class cls, NSRect frame, BOOL isPreview) {
@@ -317,6 +347,34 @@ static int RunChecks(Class principal, NSString *outputDir) {
     [full applyAnimationStateAtTime:midWave];
     Frame *second = Render(full, 1.0);
     Check([first.pixels isEqualToData:second.pixels], @"state is a pure function of (time, seed)");
+
+    NSMutableArray<Frame *> *dotFrames = [NSMutableArray array];
+    NSMutableArray<NSValue *> *dotPanels = [NSMutableArray array];
+    for (int dots = 1; dots <= 3; dots++) {
+        [full applyAnimationStateAtTime:0.25 + 0.5 * (dots - 1)];
+        Frame *frame = Render(full, 2.0);
+        NSString *file = [NSString stringWithFormat:@"full-title-dots-%d.png", dots];
+        Check([frame writePNG:[outputDir stringByAppendingPathComponent:file]],
+              [NSString stringWithFormat:@"title with %d dots: PNG written", dots]);
+        [dotFrames addObject:frame];
+        [dotPanels addObject:[NSValue valueWithRect:[(CALayer *)[full valueForKey:@"panelLayer"] frame]]];
+    }
+    NSRect dotPanel = dotPanels[0].rectValue;
+    Check(NSEqualRects(dotPanel, dotPanels[1].rectValue) && NSEqualRects(dotPanel, dotPanels[2].rectValue) &&
+              NSEqualRects(dotPanel, full.textBlockFrame),
+          @"title dots: the panel keeps its frame in every phase");
+    NSUInteger oneDot = BrightPixels(dotFrames[0], dotPanel);
+    NSUInteger twoDots = BrightPixels(dotFrames[1], dotPanel);
+    NSUInteger threeDots = BrightPixels(dotFrames[2], dotPanel);
+    Check(oneDot > 0 && oneDot < twoDots && twoDots < threeDots,
+          [NSString stringWithFormat:@"title dots: one more dot every half second (%lu < %lu < %lu bright px)",
+                                     (unsigned long)oneDot, (unsigned long)twoDots, (unsigned long)threeDots]);
+    CGFloat changedWidth = DifferenceWidth(dotFrames[0], dotFrames[2], dotPanel);
+    Check(changedWidth > 0.0 && changedWidth < NSWidth(dotPanel) * 0.1,
+          [NSString stringWithFormat:@"title dots: only the dots change, the text does not shift (%.1f of %.0f pt)",
+                                     changedWidth, NSWidth(dotPanel)]);
+    [full applyAnimationStateAtTime:0.25 + 0.5 * 3];
+    Check(BrightPixels(Render(full, 2.0), dotPanel) == oneDot, @"title dots: the cycle restarts from one dot");
 
     SetFractions(full, 0.0, 0.0);
     [full applyAnimationStateAtTime:rest];

@@ -7,7 +7,9 @@
 
 #import "ScreenISOTruchetField.h"
 
-static NSString *const kTitleText = @"Sessione protetta";
+static NSString *const kTitleText = @"Claude is working in the background";
+static const NSInteger kTitleDotCount = 3;
+static const NSTimeInterval kTitleDotStepInterval = 0.5;
 static NSString *const kMessageText = @"Questo computer è in uso. Sblocco con password o Touch ID.";
 
 static NSString *const kWillStopNotification = @"com.apple.screensaver.willstop";
@@ -39,6 +41,11 @@ static os_log_t ScreenISOLog(void) {
 
 static BOOL IsPreviewSized(NSSize size) {
     return size.width < kPreviewMaxWidth || size.height < kPreviewMaxHeight;
+}
+
+static NSInteger VisibleTitleDotsAtTime(NSTimeInterval time) {
+    NSInteger step = (NSInteger)floor(MAX(time, 0.0) / kTitleDotStepInterval);
+    return step % kTitleDotCount + 1;
 }
 
 static CGFloat RandomUnit(void) {
@@ -143,6 +150,8 @@ static CGAffineTransform TileTransform(ScreenISOTileState state) {
 @property(nonatomic) CGFloat builtScale;
 @property(nonatomic) CFTimeInterval timeOrigin;
 @property(nonatomic, copy, nullable) NSString *panelClockString;
+@property(nonatomic) NSInteger panelVisibleDots;
+@property(nonatomic, strong) NSMutableDictionary<NSNumber *, id> *panelImages;
 @property(nonatomic) CFTimeInterval lastClockCheck;
 @property(nonatomic) BOOL panelNeedsLayout;
 @property(nonatomic) BOOL sceneReady;
@@ -172,7 +181,8 @@ static CGAffineTransform TileTransform(ScreenISOTileState state) {
     _glowLayers = @[];
     _appliedStates = [NSMutableData data];
     _scratchStates = [NSMutableData data];
-    _animationSeed = ((uint64_t)arc4random() << 32) | (uint64_t)arc4random();
+    _panelImages = [NSMutableDictionary dictionary];
+    _animationSeed =((uint64_t)arc4random() << 32) | (uint64_t)arc4random();
     _timeOrigin = CACurrentMediaTime();
 
     _distributedObservers = [NSMutableArray array];
@@ -398,6 +408,8 @@ static CGAffineTransform TileTransform(ScreenISOTileState state) {
     self.glowLayers = @[];
     self.field = nil;
     self.hasAppliedStates = NO;
+    [self.panelImages removeAllObjects];
+    self.panelVisibleDots = 0;
 
     CALayer *root = self.layer;
     if (self.sceneSuspended || root == nil || size.width < 1.0 || size.height < 1.0) {
@@ -500,7 +512,7 @@ static CGAffineTransform TileTransform(ScreenISOTileState state) {
         applied[index] = state;
     }
     self.hasAppliedStates = YES;
-    [self updatePanelIfNeeded];
+    [self updatePanelAtTime:time];
     [CATransaction commit];
 }
 
@@ -535,42 +547,58 @@ static CGAffineTransform TileTransform(ScreenISOTileState state) {
 }
 
 - (NSRect)textBlockFrame {
-    return [self panelLayoutForBounds:self.bounds clock:[self.timeFormatter stringFromDate:self.clockDate ?: [NSDate date]]].frame;
+    NSString *clock = [self.timeFormatter stringFromDate:self.clockDate ?: [NSDate date]];
+    return [self panelLayoutForBounds:self.bounds clock:clock visibleDots:kTitleDotCount].frame;
 }
 
-- (void)updatePanelIfNeeded {
+- (void)updatePanelAtTime:(NSTimeInterval)time {
     CALayer *panel = self.panelLayer;
     if (panel == nil) {
         return;
     }
+    NSInteger visibleDots = VisibleTitleDotsAtTime(time);
+    BOOL dotsChanged = visibleDots != self.panelVisibleDots;
     CFTimeInterval now = CACurrentMediaTime();
-    if (!self.panelNeedsLayout && now - self.lastClockCheck < kClockCheckInterval) {
+    if (!self.panelNeedsLayout && !dotsChanged && now - self.lastClockCheck < kClockCheckInterval) {
         return;
     }
     self.lastClockCheck = now;
     NSString *clock = [self.timeFormatter stringFromDate:self.clockDate ?: [NSDate date]];
-    BOOL contentChanged = ![clock isEqualToString:self.panelClockString];
-    if (!contentChanged && !self.panelNeedsLayout) {
+    BOOL clockChanged = ![clock isEqualToString:self.panelClockString];
+    if (!clockChanged && !dotsChanged && !self.panelNeedsLayout) {
         return;
     }
 
-    ScreenISOPanelLayout *layout = [self panelLayoutForBounds:self.bounds clock:clock];
-    if (contentChanged || !NSEqualSizes(panel.bounds.size, layout.frame.size)) {
+    ScreenISOPanelLayout *layout = [self panelLayoutForBounds:self.bounds clock:clock visibleDots:visibleDots];
+    if (clockChanged || !NSEqualSizes(panel.bounds.size, layout.frame.size)) {
+        [self.panelImages removeAllObjects];
+    }
+    // The dots cycle twice a second: each phase is drawn once and reused until the clock or the size changes.
+    NSNumber *phase = @(visibleDots);
+    id image = self.panelImages[phase];
+    if (image == nil) {
         NSArray<NSAttributedString *> *lines = layout.lines;
         NSArray<NSValue *> *frames = layout.lineFrames;
-        panel.contents = CreateImage(layout.frame.size, self.builtScale, ^{
+        image = CreateImage(layout.frame.size, self.builtScale, ^{
             for (NSUInteger index = 0; index < lines.count; index++) {
                 [lines[index] drawInRect:frames[index].rectValue];
             }
         });
-        panel.cornerRadius = layout.cornerRadius;
-        self.panelClockString = clock;
+        if (image != nil) {
+            self.panelImages[phase] = image;
+        }
     }
+    panel.contents = image;
+    panel.cornerRadius = layout.cornerRadius;
     panel.frame = layout.frame;
+    self.panelClockString = clock;
+    self.panelVisibleDots = visibleDots;
     self.panelNeedsLayout = NO;
 }
 
-- (ScreenISOPanelLayout *)panelLayoutForBounds:(NSRect)bounds clock:(NSString *)clock {
+- (ScreenISOPanelLayout *)panelLayoutForBounds:(NSRect)bounds
+                                         clock:(NSString *)clock
+                                   visibleDots:(NSInteger)visibleDots {
     CGFloat width = NSWidth(bounds);
     CGFloat height = NSHeight(bounds);
     CGFloat margin = floor(MIN(width, height) * 0.05);
@@ -583,12 +611,12 @@ static CGAffineTransform TileTransform(ScreenISOTileState state) {
     }
     baseSize = MAX(baseSize, 1.0);
 
-    NSArray<NSAttributedString *> *lines = [self linesWithBaseSize:baseSize clock:clock];
+    NSArray<NSAttributedString *> *lines = [self linesWithBaseSize:baseSize clock:clock visibleDots:visibleDots];
     NSSize panelSize = [self panelSizeForLines:lines baseSize:baseSize];
     CGFloat fit = MIN(availableWidth / panelSize.width, availableHeight / panelSize.height);
     if (fit < 1.0) {
         baseSize = floor(baseSize * fit * 10.0) / 10.0;
-        lines = [self linesWithBaseSize:baseSize clock:clock];
+        lines = [self linesWithBaseSize:baseSize clock:clock visibleDots:visibleDots];
         panelSize = [self panelSizeForLines:lines baseSize:baseSize];
     }
     panelSize = NSMakeSize(ceil(panelSize.width), ceil(panelSize.height));
@@ -625,7 +653,24 @@ static CGAffineTransform TileTransform(ScreenISOTileState state) {
     return round(baseSize * 0.7);
 }
 
-- (NSArray<NSAttributedString *> *)linesWithBaseSize:(CGFloat)baseSize clock:(NSString *)clock {
+- (NSAttributedString *)titleWithAttributes:(NSDictionary *)attributes visibleDots:(NSInteger)visibleDots {
+    NSString *dots = [@"" stringByPaddingToLength:(NSUInteger)kTitleDotCount withString:@"." startingAtIndex:0];
+    NSMutableAttributedString *title =
+        [[NSMutableAttributedString alloc] initWithString:[kTitleText stringByAppendingString:dots]
+                                               attributes:attributes];
+    // Hidden dots stay in the string, transparent: the title keeps its width, so the centred text never shifts.
+    NSInteger hiddenDots = kTitleDotCount - MAX(MIN(visibleDots, kTitleDotCount), 0);
+    if (hiddenDots > 0) {
+        [title addAttribute:NSForegroundColorAttributeName
+                      value:[NSColor clearColor]
+                      range:NSMakeRange(title.length - (NSUInteger)hiddenDots, (NSUInteger)hiddenDots)];
+    }
+    return title;
+}
+
+- (NSArray<NSAttributedString *> *)linesWithBaseSize:(CGFloat)baseSize
+                                               clock:(NSString *)clock
+                                         visibleDots:(NSInteger)visibleDots {
     NSColor *secondary = [NSColor colorWithSRGBRed:0.62 green:0.61 blue:0.59 alpha:1.0];
 
     NSDictionary *titleAttributes = @{
@@ -642,7 +687,7 @@ static CGAffineTransform TileTransform(ScreenISOTileState state) {
     };
 
     return @[
-        [[NSAttributedString alloc] initWithString:kTitleText attributes:titleAttributes],
+        [self titleWithAttributes:titleAttributes visibleDots:visibleDots],
         [[NSAttributedString alloc] initWithString:kMessageText attributes:messageAttributes],
         [[NSAttributedString alloc] initWithString:clock attributes:timeAttributes],
     ];

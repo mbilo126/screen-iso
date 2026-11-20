@@ -2,28 +2,32 @@ import Foundation
 import IOKit.pwr_mgt
 
 public enum PowerAssertionKind: String, Codable, CaseIterable, Comparable, Sendable {
+    case preventDisplaySleep
     case preventIdleSystemSleep
     case preventSystemSleep
-    case preventDisplaySleep
     case preventDiskIdle
+    case userIsActive
 
     /// IOKit assertion type name passed to `IOPMAssertionCreateWithName`.
     public var assertionType: String {
         switch self {
+        case .preventDisplaySleep: "PreventUserIdleDisplaySleep"
         case .preventIdleSystemSleep: "PreventUserIdleSystemSleep"
         case .preventSystemSleep: "PreventSystemSleep"
-        case .preventDisplaySleep: "PreventUserIdleDisplaySleep"
         case .preventDiskIdle: "PreventDiskIdle"
+        case .userIsActive: "UserIsActive"
         }
     }
 
-    /// The `caffeinate` flag that creates the same assertion.
+    /// The `caffeinate` flag that creates the same assertion. `caffeinate -u` alone expires after 5 seconds;
+    /// here the assertion is held until it is released.
     public var caffeinateFlag: String {
         switch self {
+        case .preventDisplaySleep: "-d"
         case .preventIdleSystemSleep: "-i"
         case .preventSystemSleep: "-s"
-        case .preventDisplaySleep: "-d"
         case .preventDiskIdle: "-m"
+        case .userIsActive: "-u"
         }
     }
 
@@ -35,10 +39,10 @@ public enum PowerAssertionKind: String, Codable, CaseIterable, Comparable, Senda
 @MainActor
 public protocol PowerAssertionManaging: AnyObject {
     var heldKinds: Set<PowerAssertionKind> { get }
-    /// Acquires every kind not already held. On failure, assertions created by this call are released.
-    func acquire(_ kinds: Set<PowerAssertionKind>, reason: String) throws
-    /// Releases every held assertion, attempting all of them even when one fails.
-    func releaseAll() throws
+    /// Does nothing when the kind is already held.
+    func acquire(_ kind: PowerAssertionKind, reason: String) throws
+    /// Does nothing when the kind is not held. A kind whose release fails is no longer tracked as held.
+    func release(_ kind: PowerAssertionKind) throws
 }
 
 @MainActor
@@ -49,49 +53,30 @@ public final class IOKitPowerAssertionManager: PowerAssertionManaging {
 
     public var heldKinds: Set<PowerAssertionKind> { Set(assertions.keys) }
 
-    public func acquire(_ kinds: Set<PowerAssertionKind>, reason: String) throws {
-        var created: [PowerAssertionKind] = []
-        for kind in kinds.sorted() where assertions[kind] == nil {
-            var assertionID = IOPMAssertionID(0)
-            let result = IOPMAssertionCreateWithName(
-                kind.assertionType as CFString,
-                IOPMAssertionLevel(kIOPMAssertionLevelOn),
-                reason as CFString,
-                &assertionID
-            )
-            guard result == kIOReturnSuccess else {
-                Log.power.error(
-                    "power_assertion_create_failed kind=\(kind.rawValue, privacy: .public) ioReturn=\(result)"
-                )
-                for createdKind in created {
-                    if let id = assertions.removeValue(forKey: createdKind) {
-                        IOPMAssertionRelease(id)
-                    }
-                }
-                throw ScreenISOError.powerAssertionCreateFailed(kind: kind, ioReturn: result)
-            }
-            assertions[kind] = assertionID
-            created.append(kind)
-            Log.power.info("power_assertion_acquired kind=\(kind.rawValue, privacy: .public) id=\(assertionID)")
+    public func acquire(_ kind: PowerAssertionKind, reason: String) throws {
+        guard assertions[kind] == nil else { return }
+        var assertionID = IOPMAssertionID(0)
+        let result = IOPMAssertionCreateWithName(
+            kind.assertionType as CFString,
+            IOPMAssertionLevel(kIOPMAssertionLevelOn),
+            reason as CFString,
+            &assertionID
+        )
+        guard result == kIOReturnSuccess else {
+            Log.power.error("power_assertion_create_failed kind=\(kind.rawValue, privacy: .public) ioReturn=\(result)")
+            throw ScreenISOError.powerAssertionCreateFailed(kind: kind, ioReturn: result)
         }
+        assertions[kind] = assertionID
+        Log.power.info("power_assertion_acquired kind=\(kind.rawValue, privacy: .public) id=\(assertionID)")
     }
 
-    public func releaseAll() throws {
-        var failures: [ScreenISOError] = []
-        for (kind, assertionID) in assertions.sorted(by: { $0.key < $1.key }) {
-            let result = IOPMAssertionRelease(assertionID)
-            assertions[kind] = nil
-            if result == kIOReturnSuccess {
-                Log.power.info("power_assertion_released kind=\(kind.rawValue, privacy: .public)")
-            } else {
-                Log.power.error(
-                    "power_assertion_release_failed kind=\(kind.rawValue, privacy: .public) ioReturn=\(result)"
-                )
-                failures.append(.powerAssertionReleaseFailed(kind: kind, ioReturn: result))
-            }
+    public func release(_ kind: PowerAssertionKind) throws {
+        guard let assertionID = assertions.removeValue(forKey: kind) else { return }
+        let result = IOPMAssertionRelease(assertionID)
+        guard result == kIOReturnSuccess else {
+            Log.power.error("power_assertion_release_failed kind=\(kind.rawValue, privacy: .public) ioReturn=\(result)")
+            throw ScreenISOError.powerAssertionReleaseFailed(kind: kind, ioReturn: result)
         }
-        if let failure = ScreenISOError.combining(failures) {
-            throw failure
-        }
+        Log.power.info("power_assertion_released kind=\(kind.rawValue, privacy: .public)")
     }
 }

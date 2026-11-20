@@ -17,7 +17,7 @@ private struct MenuBarLabel: View {
     let model: AppModel
 
     var body: some View {
-        Image(systemName: model.isSessionRunning ? "lock.shield.fill" : "lock.shield")
-            .accessibilityLabel("ScreenISO")
+        Image(systemName: model.isKeepingAwake ? "lock.shield.fill" : "lock.shield")
+            .accessibilityLabel(model.isKeepingAwake ? "ScreenISO, attività in corso" : "ScreenISO")
     }
 }

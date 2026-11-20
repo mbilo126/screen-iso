@@ -1,6 +1,6 @@
 # ScreenISO
 
-App menu bar per macOS: tiene sveglio il Mac durante una sessione non presidiata e blocca lo schermo con il blocco nativo di macOS (password o Touch ID).
+App menu bar per macOS: tiene sveglio il Mac con le attività scelte dall'utente (assertion di `caffeinate`, `SleepDisabled`) e blocca lo schermo con il blocco nativo di macOS (password o Touch ID). Attività e blocco sono indipendenti: niente spegne un'attività in automatico.
 
 ## Deviazione dallo stack standard
 
@@ -8,7 +8,7 @@ Swift 6 con SwiftPM, SwiftUI (`MenuBarExtra`) per l'app, Objective-C per il bund
 
 ## Struttura
 
-- `Sources/ScreenISOCore`: logica (assertion di alimentazione, blocco, sessione, registro). Nessuna dipendenza dalla UI.
+- `Sources/ScreenISOCore`: logica (attività di alimentazione, blocco, registro). Nessuna dipendenza dalla UI.
 - `Sources/ScreenISO`: app menu bar.
 - `Saver/`: salvaschermo `.saver`, compilato con clang.
 - `Tests/ScreenISOCoreTests`: test con Swift Testing (`import Testing`). XCTest non è disponibile senza Xcode.

@@ -1,16 +1,19 @@
 import Foundation
 
 public enum AuditEvent: String, Codable, CaseIterable, Sendable {
-    case sessionStarted = "session_started"
-    case sessionStartFailed = "session_start_failed"
+    case powerAssertionChanged = "power_assertion_changed"
+    case sleepDisabledChanged = "sleep_disabled_changed"
     case screenLocked = "screen_locked"
     case screenUnlocked = "screen_unlocked"
+    case lockFailed = "lock_failed"
+    case preconditionFailed = "precondition_failed"
+
+    // No longer written. Kept because the log is append-only and records from earlier versions must still decode.
+    case sessionStarted = "session_started"
+    case sessionStartFailed = "session_start_failed"
     case sessionEnded = "session_ended"
     case sessionRecovered = "session_recovered"
     case snapshotDiscarded = "snapshot_discarded"
-    case lockFailed = "lock_failed"
-    case preconditionFailed = "precondition_failed"
-    case sleepDisabledChanged = "sleep_disabled_changed"
 }
 
 /// A JSON scalar in an audit entry's `details`. Numbers are a single case because JSON does not distinguish 3 from 3.0.
@@ -64,6 +67,7 @@ extension AuditValue: ExpressibleByStringLiteral, ExpressibleByIntegerLiteral, E
 public struct AuditEntry: Codable, Equatable, Sendable {
     public var timestamp: Date
     public var event: AuditEvent
+    /// Shared by the records of one lock, from the request to the unlock. Every other record has its own.
     public var sessionId: UUID
     public var details: [String: AuditValue]
 

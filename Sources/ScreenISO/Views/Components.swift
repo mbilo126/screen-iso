@@ -14,51 +14,6 @@ struct PanelSection<Content: View>: View {
     }
 }
 
-enum RequirementState {
-    case satisfied
-    case missing
-    case informative(Bool)
-}
-
-struct RequirementRow<Detail: View>: View {
-    let title: String
-    let state: RequirementState
-    let value: String
-    @ViewBuilder let detail: Detail
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: symbol)
-                .symbolRenderingMode(.multicolor)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(title)
-                    Spacer(minLength: 8)
-                    Text(value)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.trailing)
-                }
-                detail
-            }
-        }
-    }
-
-    private var symbol: String {
-        switch state {
-        case .satisfied: "checkmark.circle.fill"
-        case .missing: "xmark.circle.fill"
-        case .informative: "info.circle"
-        }
-    }
-}
-
-extension RequirementRow where Detail == EmptyView {
-    init(title: String, state: RequirementState, value: String) {
-        self.init(title: title, state: state, value: value) { EmptyView() }
-    }
-}
-
 struct NoticeLine: View {
     enum Kind {
         case error

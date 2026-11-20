@@ -1,30 +1,30 @@
 # ScreenISO
 
-App per la barra dei menu di macOS. Serve quando un processo lungo (per esempio Claude Code) deve continuare a lavorare mentre l'utente è lontano dal Mac: con un click avvia una sessione protetta che impedisce lo stop, blocca lo schermo con il blocco nativo di macOS e, allo sblocco, ripristina le impostazioni e chiude la sessione. Ogni passaggio viene scritto in un registro di audit utilizzabile come evidenza per ISO 27001.
+App per la barra dei menu di macOS. Serve quando un processo lungo (per esempio Claude Code) deve continuare a lavorare mentre l'utente è lontano dal Mac: dal pannello si scelgono le attività che tengono sveglio il Mac e si blocca lo schermo con il blocco nativo di macOS. Le due cose sono indipendenti: le attività restano attive finché non vengono spente, a schermo sbloccato come a schermo bloccato. Ogni cambio e ogni blocco vengono scritti in un registro di audit utilizzabile come evidenza per ISO 27001.
 
 ## Cosa fa e cosa non fa
 
 Fa:
 
-- impedisce lo stop del Mac con le stesse assertion di `caffeinate`, scelte dall'utente;
-- se richiesto, impedisce lo stop anche a coperchio chiuso con `pmset disablesleep`, e al termine rimette il valore che c'era prima;
+- tiene sveglio il Mac con le stesse assertion di `caffeinate` (`-d`, `-i`, `-s`, `-m`, `-u`), attivabili una per una e subito;
+- attiva e disattiva `pmset disablesleep`, che tiene sveglio il Mac anche a coperchio chiuso;
 - blocca lo schermo con la schermata di blocco di macOS, oppure avviando il salvaschermo;
-- verifica che il blocco sia avvenuto davvero, altrimenti annulla la sessione;
-- chiude la sessione da sola quando l'utente sblocca il Mac;
+- verifica che il blocco sia avvenuto davvero, altrimenti lo segnala;
 - scrive un registro append-only in formato JSON Lines.
 
 Non fa:
 
 - non mostra una schermata di blocco propria: password e Touch ID sono gestiti da macOS (loginwindow);
 - non cambia l'impostazione "Richiedi la password subito": la controlla e indica il comando da eseguire;
-- non sorveglia il processo che sta lavorando e non chiude la sessione a tempo;
+- non spegne le attività da sola: né allo sblocco, né a tempo;
+- non sorveglia il processo che sta lavorando;
 - non si avvia al login.
 
 ## Requisiti
 
 - macOS 14 o successivo (sviluppata e provata su macOS 26.6, Apple silicon).
 - Per compilare: Command Line Tools con Swift 6. Xcode non serve.
-- Per la modalità coperchio chiuso: un account amministratore per installare la regola sudoers.
+- Per `SleepDisabled`: un account amministratore per installare la regola sudoers.
 
 ## Build
 
@@ -58,43 +58,56 @@ Stampa un JSON con la politica di blocco, lo stato di `SleepDisabled`, la regola
 
 ## Installazione
 
-Copia `build/ScreenISO.app` in `/Applications` e aprila. Si apre una finestra con il pannello e compare l'icona `lock.shield` nella barra dei menu, da cui si riapre lo stesso pannello. L'app non ha icona nel Dock: chiudere la finestra non la termina, e aprirla di nuovo dal Finder o da Spotlight rimostra la finestra. Un'app compilata in locale non ha l'attributo di quarantena, quindi Gatekeeper non la blocca; se la copi da un altro Mac, aprila la prima volta con clic destro e "Apri".
+Copia `build/ScreenISO.app` in `/Applications` e aprila. Si apre una finestra con il pannello e compare l'icona `lock.shield` nella barra dei menu, da cui si riapre lo stesso pannello. L'icona è piena finché almeno un'attività tiene sveglio il Mac. L'app non ha icona nel Dock: chiudere la finestra non la termina, e aprirla di nuovo dal Finder o da Spotlight rimostra la finestra. Un'app compilata in locale non ha l'attributo di quarantena, quindi Gatekeeper non la blocca; se la copi da un altro Mac, aprila la prima volta con clic destro e "Apri".
 
 ## Primo avvio
 
-Il pannello mostra i requisiti. Il pulsante "Avvia sessione protetta" resta disattivato, con il motivo, finché ne manca uno.
+Il pannello ha due sezioni, Attività e Blocco. Quello che manca compare come avviso dentro la sezione che ne ha bisogno.
 
-1. **Password subito al blocco.** Se macOS concede un ritardo prima di chiedere la password, lo schermo bloccato potrebbe riaprirsi senza autenticazione. ScreenISO non modifica questa impostazione: copia il comando dal pannello ed eseguilo nel Terminale.
+1. **Password subito al blocco.** Se macOS concede un ritardo prima di chiedere la password, lo schermo bloccato potrebbe riaprirsi senza autenticazione. Finché è così i due pulsanti di blocco restano disattivati. ScreenISO non modifica questa impostazione: copia il comando dal pannello ed eseguilo nel Terminale.
 
    ```sh
    sysadminctl -screenLock immediate -password -
    ```
 
-   Il comando chiede la password dell'utente. Poi riapri il pannello: il requisito risulta conforme.
+   Il comando chiede la password dell'utente. Poi riapri il pannello: l'avviso sparisce.
 
-2. **Salvaschermo (facoltativo).** Serve solo per la modalità "Salvaschermo". "Installa salvaschermo" copia il `.saver` incluso nell'app in `~/Library/Screen Savers/` e apre le Impostazioni di Sistema, dove va selezionato "ScreenISO" nella sezione Altro. Su macOS 26 la scelta sta in Sfondo, dietro il pulsante "Salvaschermo…"; fino a macOS 15 c'è un pannello Salvaschermo a sé. Installarlo non basta: la modalità "Salvaschermo" avvia il salvaschermo selezionato nelle Impostazioni, qualunque sia. Finché ScreenISO non risulta selezionato, il pannello mostra un avviso con il percorso e il pulsante per aprire il pannello giusto. Dopo una nuova build dell'app, se il salvaschermo installato è diverso da quello incluso, il pannello lo segnala e offre "Aggiorna salvaschermo": sostituisce la copia installata e termina il processo `legacyScreenSaver` dell'utente, che macOS riavvia da solo con il codice nuovo.
+2. **Salvaschermo (facoltativo).** Serve solo per il pulsante "Salvaschermo". "Installa salvaschermo" copia il `.saver` incluso nell'app in `~/Library/Screen Savers/` e apre le Impostazioni di Sistema, dove va selezionato "ScreenISO" nella sezione Altro. Su macOS 26 la scelta sta in Sfondo, dietro il pulsante "Salvaschermo…"; fino a macOS 15 c'è un pannello Salvaschermo a sé. Installarlo non basta: il pulsante avvia il salvaschermo selezionato nelle Impostazioni, qualunque sia. Finché ScreenISO non risulta selezionato, il pannello mostra un avviso con il percorso e il pulsante per aprire il pannello giusto. Dopo una nuova build dell'app, se il salvaschermo installato è diverso da quello incluso, il pannello lo segnala e offre "Aggiorna salvaschermo": sostituisce la copia installata e termina il processo `legacyScreenSaver` dell'utente, che macOS riavvia da solo con il codice nuovo.
 
-3. **Regola sudoers (facoltativa).** Serve solo per "Resta sveglio a coperchio chiuso". "Installa regola" mostra il prompt di amministratore di macOS. "Rimuovi regola" la toglie.
+3. **Regola sudoers (facoltativa).** Serve solo per l'interruttore `SleepDisabled`. "Installa regola" mostra il prompt di amministratore di macOS. "Rimuovi regola sudoers", in fondo al pannello, la toglie.
 
-## Come funziona una sessione
+## Come funziona
 
-1. **Controlli.** La politica di blocco deve essere "subito"; se è attiva l'opzione coperchio chiuso, la regola sudoers deve essere attiva. Se un controllo fallisce non viene cambiato niente e il registro riceve `precondition_failed`.
-2. **Snapshot.** Prima di ogni modifica ScreenISO salva in `~/Library/Application Support/ScreenISO/session.json` la configurazione e il valore corrente di `SleepDisabled`.
-3. **Alimentazione.** Crea le assertion IOKit scelte e, se richiesto, esegue `sudo -n /usr/bin/pmset -a disablesleep 1`.
-4. **Blocco.** In modalità "Schermata di blocco" chiama `SACLockScreenImmediate`. In modalità "Salvaschermo" avvia `ScreenSaverEngine`; se entro 5 secondi lo schermo non risulta bloccato, ripiega sul blocco diretto. Il blocco è confermato dalla notifica `com.apple.screenIsLocked` o dalla chiave `CGSSessionScreenIsLocked` della sessione grafica. Se non arriva nessuna conferma, tutto viene annullato e il registro riceve `lock_failed`.
-5. **Sblocco.** Alla notifica `com.apple.screenIsUnlocked` ScreenISO rilascia le assertion, rimette `disablesleep` al valore dello snapshot, cancella lo snapshot e scrive `session_ended`.
+### Attività
 
-Se l'app termina in modo anomalo durante una sessione, le assertion IOKit vengono rilasciate dal sistema insieme al processo, mentre `disablesleep` resta com'era. Al successivo avvio ScreenISO trova lo snapshot, ripristina `disablesleep` e scrive `session_recovered`. Se lo snapshot non è leggibile, il pannello lo segnala e offre "Scarta stato salvato": il file non viene mai scartato senza una scelta esplicita, e lo scarto viene registrato come `snapshot_discarded`.
+La riga `caffeinate` ha una casella per ogni opzione. Spuntarla crea subito l'assertion IOKit corrispondente, toglierla la rilascia. La casella "tutte", in fondo alla riga, le attiva o le disattiva insieme ed è spuntata quando sono tutte attive.
 
-"Esci" durante una sessione attiva chiude prima la sessione, così `disablesleep` viene ripristinato subito.
+| Opzione | Assertion | Effetto |
+| --- | --- | --- |
+| `-d` | `PreventUserIdleDisplaySleep` | lo schermo non si spegne per inattività |
+| `-i` | `PreventUserIdleSystemSleep` | il Mac non va in stop per inattività |
+| `-s` | `PreventSystemSleep` | il Mac non va in stop; vale solo con l'alimentatore collegato |
+| `-m` | `PreventDiskIdle` | i dischi non vanno in stop |
+| `-u` | `UserIsActive` | dichiara l'utente attivo: schermo acceso |
 
-### SleepDisabled fuori sessione
+`caffeinate -u` da solo scade dopo 5 secondi; qui l'assertion resta finché la casella è spuntata.
 
-Nella sezione Alimentazione l'interruttore "SleepDisabled attivo adesso, anche fuori sessione" esegue subito `pmset -a disablesleep 1` o `0`, senza avviare una sessione e senza bloccare lo schermo. Serve quando il Mac deve restare sveglio mentre lo si usa, anche a coperchio chiuso. Richiede la regola sudoers ed è disattivato durante una sessione.
+L'interruttore `SleepDisabled` esegue `sudo -n /usr/bin/pmset -a disablesleep 1` o `0`. Con il valore a 1 il Mac non va in stop nemmeno a coperchio chiuso. Richiede la regola sudoers; senza, l'interruttore è disattivato e, se `SleepDisabled` risulta comunque attivo (impostato dal Terminale), il pannello indica il comando per riattivare lo stop.
 
-A differenza di una sessione, niente lo ripristina: il valore resta finché non si spegne l'interruttore, anche dopo aver chiuso l'app. Finché è attivo il pannello mostra un avviso. Una sessione avviata con SleepDisabled già attivo lo lascia attivo alla fine, perché ripristina il valore che ha trovato. Ogni cambio manuale viene scritto nel registro come `sleep_disabled_changed`.
+Niente spegne le attività in automatico. Durata:
 
-Senza la regola sudoers l'interruttore è disattivato; se `SleepDisabled` risulta comunque attivo (impostato dal Terminale), il pannello indica il comando per riattivare lo stop.
+- le assertion di `caffeinate` appartengono al processo dell'app: valgono finché l'app è aperta e la casella è spuntata. All'avvio sono tutte spente. "Esci" le rilascia e lo registra; se l'app termina in modo anomalo le rilascia macOS, senza traccia nel registro;
+- `SleepDisabled` è un'impostazione di sistema: resta al valore scelto anche dopo aver chiuso l'app e dopo un riavvio.
+
+### Blocco
+
+I pulsanti "Schermata di blocco" e "Salvaschermo" bloccano subito lo schermo. Le attività non vengono toccate: quelle attive restano attive durante il blocco e dopo lo sblocco.
+
+1. **Controlli.** La politica di blocco deve essere "subito". Se non lo è non succede niente e il registro riceve `precondition_failed`.
+2. **Blocco.** "Schermata di blocco" chiama `SACLockScreenImmediate`. "Salvaschermo" avvia `ScreenSaverEngine`; se entro 5 secondi lo schermo non risulta bloccato, ripiega sul blocco diretto. Il blocco è confermato dalla notifica `com.apple.screenIsLocked` o dalla chiave `CGSSessionScreenIsLocked` della sessione grafica. Se non arriva nessuna conferma, il pannello mostra l'errore e il registro riceve `lock_failed`.
+3. **Sblocco.** Alla notifica `com.apple.screenIsUnlocked` ScreenISO scrive `screen_unlocked` con la durata del blocco. Non cambia altro.
+
+Vengono registrati solo i blocchi avviati dal pannello, non quelli fatti con la scorciatoia di macOS o partiti per inattività.
 
 ## Registro di audit
 
@@ -103,25 +116,23 @@ Percorso: `~/Library/Logs/ScreenISO/audit.jsonl`. "Apri registro" lo mostra nel 
 Il file è in sola aggiunta, con permessi `0600`. Ogni riga è un oggetto JSON indipendente, scritto con una singola `write` in `O_APPEND` seguita da `fsync`. Le chiavi sono in ordine alfabetico, gli orari in UTC ISO 8601 con i millisecondi.
 
 ```json
-{"details":{"cleanupComplete":true,"durationSeconds":3600.5,"errorCodes":"","lockedDurationSeconds":3598.2,"restoredSleepDisabled":false,"trigger":"screenUnlocked"},"event":"session_ended","sessionId":"6F9619FF-8B86-D011-B42D-00C04FC964FF","timestamp":"2027-01-15T08:00:00.250Z"}
+{"details":{"lockMethod":"screenSaver","lockMode":"screenSaver","powerAssertions":"preventDisplaySleep,preventIdleSystemSleep","screenLockPolicy":"screenLock delay is immediate","sleepDisabled":true},"event":"screen_locked","sessionId":"6F9619FF-8B86-D011-B42D-00C04FC964FF","timestamp":"2027-01-15T08:00:00.250Z"}
 ```
 
-Campi comuni: `timestamp`, `event`, `sessionId` (un UUID per sessione), `details`.
+Campi comuni: `timestamp`, `event`, `sessionId`, `details`. Il `sessionId` è lo stesso per le righe di un blocco, dalla richiesta allo sblocco; ogni altra riga ne ha uno proprio.
 
 | Evento | Dettagli |
 | --- | --- |
-| `session_started` | `powerAssertions`, `keepAwakeWithLidClosed`, `lockMode`, `previousSleepDisabled`, `screenLockPolicy` |
-| `screen_locked` | `lockMode`, `lockMethod` (`loginWindow`, `screenSaver`, `loginWindowFallback`) |
-| `screen_unlocked` | nessuno |
-| `session_ended` | `trigger` (`screenUnlocked` o `manual`), `durationSeconds`, `lockedDurationSeconds`, `restoredSleepDisabled`, `cleanupComplete`, `errorCodes` |
-| `precondition_failed` | `errorCode`, `message` |
-| `session_start_failed` | `stage`, `errorCode`, `message`, `rolledBack`, `rollbackErrorCodes` |
-| `lock_failed` | `lockMode`, `errorCode`, `message`, `rolledBack`, `rollbackErrorCodes` |
-| `session_recovered` | `snapshotStartedAt`, `keepAwakeWithLidClosed`, `restoredSleepDisabled` |
-| `snapshot_discarded` | `previousErrorCode`; il `sessionId` è nuovo, perché quello originale non è leggibile |
-| `sleep_disabled_changed` | `value`, `previousValue`; cambio manuale fuori sessione, con un `sessionId` proprio |
+| `power_assertion_changed` | `kind`, `caffeinateFlag`, `value`, `powerAssertions` (quelle attive dopo il cambio) |
+| `sleep_disabled_changed` | `value`, `previousValue` |
+| `screen_locked` | `lockMode`, `lockMethod` (`loginWindow`, `screenSaver`, `loginWindowFallback`), `powerAssertions`, `sleepDisabled`, `screenLockPolicy` |
+| `screen_unlocked` | `lockedDurationSeconds`, `powerAssertions` |
+| `precondition_failed` | `lockMode`, `errorCode`, `message` |
+| `lock_failed` | `lockMode`, `errorCode`, `message` |
 
-Una sessione completa produce, in ordine, `session_started`, `screen_locked`, `screen_unlocked`, `session_ended` con lo stesso `sessionId`. `lockMethod` dice quale meccanismo ha bloccato davvero lo schermo, che può differire dalla modalità scelta.
+Un blocco completo produce `screen_locked` e `screen_unlocked` con lo stesso `sessionId`. `lockMethod` dice quale meccanismo ha bloccato davvero lo schermo, che può differire dal pulsante premuto. `powerAssertions` e `sleepDisabled` dicono cosa teneva sveglio il Mac in quel momento.
+
+Le versioni precedenti lavoravano a sessioni e scrivevano anche `session_started`, `session_start_failed`, `session_ended`, `session_recovered` e `snapshot_discarded`. Non vengono più scritti, ma le righe già presenti restano nel file.
 
 I log operativi vanno nel log unificato di macOS con subsystem `it.yellowtech.screeniso`:
 
@@ -131,7 +142,7 @@ log show --last 1h --info --predicate 'subsystem == "it.yellowtech.screeniso"'
 
 ## Note di sicurezza
 
-**API privata.** Il blocco diretto usa `SACLockScreenImmediate`, caricata con `dlopen` da `/System/Library/PrivateFrameworks/login.framework`. Non è documentata: un aggiornamento di macOS può rimuoverla o cambiarla. Il pannello verifica a ogni apertura che il simbolo sia risolvibile e, se non lo è, disattiva l'avvio.
+**API privata.** Il blocco diretto usa `SACLockScreenImmediate`, caricata con `dlopen` da `/System/Library/PrivateFrameworks/login.framework`. Non è documentata: un aggiornamento di macOS può rimuoverla o cambiarla. Il pannello verifica a ogni apertura che il simbolo sia risolvibile e, se non lo è, disattiva i pulsanti di blocco.
 
 **Regola sudoers.** `pmset disablesleep` richiede i privilegi di root. Poiché l'app è firmata ad-hoc, non può registrare un helper privilegiato con `SMAppService`; al suo posto c'è una regola sudoers mirata, installata in `/etc/sudoers.d/screeniso` con permessi `0440` e proprietario `root:wheel`:
 
@@ -141,15 +152,18 @@ log show --last 1h --info --predicate 'subsystem == "it.yellowtech.screeniso"'
 
 Consente all'utente che l'ha installata di eseguire senza password solo quei due comandi esatti, con quegli argomenti. Non consente altri argomenti di `pmset` né altri programmi. Il nome utente viene validato prima di scrivere la regola. L'installazione passa da un unico prompt di amministratore (`osascript ... with administrator privileges`). Il testo della regola è dentro il comando stesso, senza file temporanei che un altro processo potrebbe sostituire; root lo scrive con un nome che `sudo` ignora, lo verifica con `visudo -cf` e solo allora lo rinomina.
 
-Il pannello e `--status` controllano solo che il file della regola esista, senza invocare `sudo`: un tentativo `sudo -n` negato finisce nel log di sistema e sembrerebbe un'escalation fallita. La verifica vera (`sudo -n -l`, che non chiede password e non esegue nulla) avviene una volta, all'avvio di una sessione con l'opzione coperchio chiuso.
+Il pannello e `--status` controllano solo che il file della regola esista, senza invocare `sudo`: un tentativo `sudo -n` negato finisce nel log di sistema e sembrerebbe un'escalation fallita. La verifica vera (`sudo -n -l`, che non chiede password e non esegue nulla) avviene a ogni cambio dell'interruttore `SleepDisabled`.
 
 **Firma ad-hoc.** L'app e il salvaschermo sono firmati ad-hoc, senza identità di sviluppatore né notarizzazione. L'integrità del bundle è verificabile con `codesign --verify --deep --strict build/ScreenISO.app`, ma la firma non identifica chi l'ha prodotto: chi installa l'app deve compilarla da sé o fidarsi di chi gliel'ha data.
 
 ## Limiti noti
 
-- **Computer use.** Con lo schermo bloccato macOS non accetta input sintetico e non permette di leggere lo schermo. Un processo che controlla il Mac tramite mouse, tastiera o screenshot non funziona durante la sessione; un processo che lavora da terminale sì.
-- **Salvaschermo su macOS 26.** I salvaschermi di terze parti girano dentro il processo `legacyScreenSaver`, che ha bug noti segnalati da chi sviluppa salvaschermi. Su 26.6.2, con due display, l'host tiene in vita quattro istanze (due per display), le riavvia a ogni attivazione e ne crea altre due che rilascia allo stop: durante la sessione ne animano sei, anche se a schermo se ne vedono due. ScreenISO non fa uscire il processo (macOS lo rilancerebbe subito con un'istanza che anima senza essere a schermo): allo stop ogni istanza ferma il timer e libera le proprie risorse. Misurato su un MacBook Air M4 in una sessione di due minuti: 4,3% di un core durante il blocco, 0% prima e dopo. La modalità "Schermata di blocco" non dipende dal salvaschermo.
-- **Modalità Salvaschermo.** Su macOS 26.6.2 `ScreenSaverEngine` con la password immediata porta a uno schermo che macOS segnala come bloccato (nel registro `lockMethod` è `screenSaver`). Se su un'altra versione non lo facesse, ScreenISO ripiega sul blocco diretto e il registro riporta `loginWindowFallback`.
-- **Salvaschermo selezionato.** macOS non offre un'API per sapere quale salvaschermo è scelto nelle Impostazioni. ScreenISO cerca il nome del proprio bundle nell'archivio privato degli sfondi (`~/Library/Application Support/com.apple.wallpaper/Store/Index.plist`): è un controllo indicativo, che non blocca l'avvio della sessione.
-- **Assertion `-s`.** "Impedisci lo stop con alimentatore collegato" (`caffeinate -s`) ha effetto solo con l'alimentatore collegato.
-- **Regola sudoers.** Provata su macOS 26.6.2: la regola passa `visudo`, viene installata in `/etc/sudoers.d/screeniso` e una sessione con l'opzione coperchio chiuso imposta `disablesleep` a 1 e lo riporta a 0 allo sblocco. Non è verificato come `osascript` si comporta in tutti i casi di annullamento del prompt: l'app riconosce l'errore AppleScript `-128` come annullamento e tratta ogni altro codice come errore.
+- **Attività dimenticate.** Un'attività lasciata attiva resta attiva: con `-d` o `-u` lo schermo non si spegne mai, con `SleepDisabled` il Mac non va in stop nemmeno nello zaino. L'icona piena nella barra dei menu lo ricorda.
+- **Schermo spento.** Senza `-d` o `-u` macOS spegne lo schermo dopo il tempo impostato per l'inattività, anche con il salvaschermo in corso. Il Mac resta sveglio se è attiva `-i`, `-s` o `SleepDisabled`: in una prova di 40 minuti con `-i` e `-s` lo schermo si è spento dopo 10 minuti e i processi hanno continuato a lavorare.
+- **Computer use.** Con lo schermo bloccato macOS non accetta input sintetico e non permette di leggere lo schermo. Un processo che controlla il Mac tramite mouse, tastiera o screenshot non funziona a schermo bloccato; un processo che lavora da terminale sì.
+- **Salvaschermo su macOS 26.** I salvaschermi di terze parti girano dentro il processo `legacyScreenSaver`, che ha bug noti segnalati da chi sviluppa salvaschermi. Su 26.6.2, con due display, l'host tiene in vita quattro istanze (due per display), le riavvia a ogni attivazione e ne crea altre due che rilascia allo stop: durante il blocco ne animano sei, anche se a schermo se ne vedono due. ScreenISO non fa uscire il processo (macOS lo rilancerebbe subito con un'istanza che anima senza essere a schermo): allo stop ogni istanza ferma il timer e libera le proprie risorse. Misurato su un MacBook Air M4 in un blocco di due minuti: 4,3% di un core durante il blocco, 0% prima e dopo. Il pulsante "Schermata di blocco" non dipende dal salvaschermo.
+- **Pulsante Salvaschermo.** Su macOS 26.6.2 `ScreenSaverEngine` con la password immediata porta a uno schermo che macOS segnala come bloccato (nel registro `lockMethod` è `screenSaver`). Se su un'altra versione non lo facesse, ScreenISO ripiega sul blocco diretto e il registro riporta `loginWindowFallback`.
+- **Salvaschermo selezionato.** macOS non offre un'API per sapere quale salvaschermo è scelto nelle Impostazioni. ScreenISO cerca il nome del proprio bundle nell'archivio privato degli sfondi (`~/Library/Application Support/com.apple.wallpaper/Store/Index.plist`): è un controllo indicativo, che non disattiva il pulsante.
+- **Assertion `-s`.** `caffeinate -s` ha effetto solo con l'alimentatore collegato.
+- **Assertion `-u`.** Verificato su macOS 26.6.2 che l'assertion `UserIsActive` creata senza timeout resta attiva e senza scadenza; non è stata provata per ore.
+- **Regola sudoers.** Provata su macOS 26.6.2: la regola passa `visudo`, viene installata in `/etc/sudoers.d/screeniso` e l'interruttore imposta `disablesleep` a 1 e a 0. Non è verificato come `osascript` si comporta in tutti i casi di annullamento del prompt: l'app riconosce l'errore AppleScript `-128` come annullamento e tratta ogni altro codice come errore.

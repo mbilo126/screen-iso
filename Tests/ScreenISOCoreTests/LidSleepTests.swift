@@ -117,9 +117,9 @@ struct PowerAssertionKindTests {
         let mapping = PowerAssertionKind.allCases.map { ($0.assertionType, $0.caffeinateFlag) }
         #expect(
             mapping.map(\.0) == [
-                "PreventUserIdleSystemSleep", "PreventSystemSleep", "PreventUserIdleDisplaySleep", "PreventDiskIdle",
+                "PreventUserIdleDisplaySleep", "PreventUserIdleSystemSleep", "PreventSystemSleep", "PreventDiskIdle",
+                "UserIsActive",
             ])
-        #expect(mapping.map(\.1) == ["-i", "-s", "-d", "-m"])
-        #expect(!mapping.map(\.1).contains("-u"))
+        #expect(mapping.map(\.1) == ["-d", "-i", "-s", "-m", "-u"])
     }
 }

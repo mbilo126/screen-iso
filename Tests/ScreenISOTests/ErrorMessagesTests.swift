@@ -22,18 +22,14 @@ struct ErrorMessagesTests {
         .screenLockNotImmediate(.delay(seconds: 5)),
         .sudoRuleMissing,
         .lockNotConfirmed(lockMode: .screenSaver),
-        .sessionAlreadyRunning,
-        .noActiveSession,
+        .lockAlreadyInProgress,
         .fileWriteFailed(path: "/tmp/a", message: "denied"),
         .fileReadFailed(path: "/tmp/b", message: "missing"),
-        .snapshotCorrupted(path: "/tmp/session.json", message: "bad json"),
-        .cleanupIncomplete([.sudoRuleMissing, .noActiveSession]),
+        .multipleFailures([.sudoRuleMissing, .lockAlreadyInProgress]),
         .unexpected(message: "boom"),
     ]
 
     static let appErrors: [AppError] = [
-        .configurationUnreadable(message: "bad"),
-        .configurationWriteFailed(message: "bad"),
         .saverResourceMissing,
         .saverInstallFailed(message: "exists"),
         .saverHostReloadFailed(message: "pkill: failed"),
@@ -71,12 +67,12 @@ struct ErrorMessagesTests {
         )
     }
 
-    @Test("cleanup_incomplete lists the nested failures")
+    @Test("multiple_failures lists the nested failures")
     func nestedFailures() {
-        let message = ErrorMessages.message(for: .cleanupIncomplete([.sudoRuleMissing, .noActiveSession]))
-        #expect(message.hasPrefix("Ripristino incompleto: "))
+        let message = ErrorMessages.message(for: .multipleFailures([.sudoRuleMissing, .lockAlreadyInProgress]))
+        #expect(message.hasPrefix("Più operazioni non riuscite: "))
         #expect(message.contains("La regola sudoers per pmset disablesleep non è attiva"))
-        #expect(message.contains("Nessuna sessione protetta in corso"))
+        #expect(message.contains("Un blocco dello schermo è già in corso"))
     }
 
     @Test("DisplayedError keeps the code and wraps foreign errors")

@@ -16,12 +16,10 @@ public enum ScreenISOError: Error, Equatable, Sendable {
     case screenLockNotImmediate(ScreenLockPolicy)
     case sudoRuleMissing
     case lockNotConfirmed(lockMode: LockMode)
-    case sessionAlreadyRunning
-    case noActiveSession
+    case lockAlreadyInProgress
     case fileWriteFailed(path: String, message: String)
     case fileReadFailed(path: String, message: String)
-    case snapshotCorrupted(path: String, message: String)
-    case cleanupIncomplete([ScreenISOError])
+    case multipleFailures([ScreenISOError])
     case unexpected(message: String)
 
     public var code: String {
@@ -41,12 +39,10 @@ public enum ScreenISOError: Error, Equatable, Sendable {
         case .screenLockNotImmediate: "screen_lock_not_immediate"
         case .sudoRuleMissing: "sudo_rule_missing"
         case .lockNotConfirmed: "lock_not_confirmed"
-        case .sessionAlreadyRunning: "session_already_running"
-        case .noActiveSession: "no_active_session"
+        case .lockAlreadyInProgress: "lock_already_in_progress"
         case .fileWriteFailed: "file_write_failed"
         case .fileReadFailed: "file_read_failed"
-        case .snapshotCorrupted: "snapshot_corrupted"
-        case .cleanupIncomplete: "cleanup_incomplete"
+        case .multipleFailures: "multiple_failures"
         case .unexpected: "unexpected_error"
         }
     }
@@ -83,18 +79,14 @@ public enum ScreenISOError: Error, Equatable, Sendable {
             "The sudoers rule for pmset disablesleep is not active"
         case .lockNotConfirmed(let lockMode):
             "The screen lock could not be confirmed (lock mode \(lockMode.rawValue))"
-        case .sessionAlreadyRunning:
-            "A protected session is already running"
-        case .noActiveSession:
-            "There is no active protected session"
+        case .lockAlreadyInProgress:
+            "A screen lock requested by ScreenISO is already in progress"
         case .fileWriteFailed(let path, let message):
             "Could not write \(path): \(message)"
         case .fileReadFailed(let path, let message):
             "Could not read \(path): \(message)"
-        case .snapshotCorrupted(let path, let message):
-            "The session snapshot at \(path) is not valid: \(message)"
-        case .cleanupIncomplete(let errors):
-            "Cleanup did not complete: " + errors.map(\.code).joined(separator: ", ")
+        case .multipleFailures(let errors):
+            "Several operations failed: " + errors.map(\.code).joined(separator: ", ")
         case .unexpected(let message):
             "Unexpected error: \(message)"
         }
@@ -115,12 +107,12 @@ extension ScreenISOError {
         }
     }
 
-    /// Collapses several cleanup failures into one error.
+    /// Collapses the failures of a batch of operations into one error.
     static func combining(_ errors: [ScreenISOError]) -> ScreenISOError? {
         switch errors.count {
         case 0: nil
         case 1: errors[0]
-        default: .cleanupIncomplete(errors)
+        default: .multipleFailures(errors)
         }
     }
 }

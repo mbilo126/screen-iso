@@ -19,13 +19,6 @@ struct LabelsTests {
         #expect(Labels.description(of: .off) == "password non richiesta")
         #expect(Labels.description(of: .unrecognized(raw: "???")) == "non riconosciuta (???)")
     }
-
-    @Test("session start time is HH:mm in the given time zone")
-    func clockTime() throws {
-        let date = Date(timeIntervalSince1970: 1_800_000_000)
-        #expect(Labels.clockTime(date, timeZone: try #require(TimeZone(identifier: "UTC"))) == "08:00")
-        #expect(Labels.clockTime(date, timeZone: try #require(TimeZone(identifier: "Europe/Rome"))) == "09:00")
-    }
 }
 
 @Suite("Screen saver installer")

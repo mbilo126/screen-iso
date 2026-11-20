@@ -2,6 +2,20 @@ import AppKit
 import CoreGraphics
 import Foundation
 
+public enum LockMode: String, Codable, CaseIterable, Sendable {
+    /// `SACLockScreenImmediate`: the loginwindow lock screen.
+    case loginWindow
+    /// ScreenSaverEngine, which locks through the immediate screen lock policy.
+    case screenSaver
+}
+
+public enum LockMethod: String, Codable, Sendable {
+    case loginWindow
+    case screenSaver
+    /// The screen saver did not confirm the lock and `SACLockScreenImmediate` did.
+    case loginWindowFallback
+}
+
 @MainActor
 public protocol ScreenLockControlling: AnyObject {
     /// Locks through `SACLockScreenImmediate` and returns its raw result.

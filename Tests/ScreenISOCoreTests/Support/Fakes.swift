@@ -5,21 +5,30 @@ import Foundation
 @MainActor
 final class FakePowerAssertions: PowerAssertionManaging {
     private(set) var heldKinds: Set<PowerAssertionKind> = []
-    private(set) var acquireCalls: [Set<PowerAssertionKind>] = []
-    private(set) var releaseCalls = 0
+    private(set) var acquireCalls: [PowerAssertionKind] = []
+    private(set) var releaseCalls: [PowerAssertionKind] = []
     var acquireError: ScreenISOError?
+    var failingAcquires: Set<PowerAssertionKind> = []
+    /// Kinds whose release fails. Like the real manager, the fake stops tracking them anyway.
+    var failingReleases: Set<PowerAssertionKind> = []
 
-    func acquire(_ kinds: Set<PowerAssertionKind>, reason: String) throws {
-        acquireCalls.append(kinds)
+    func acquire(_ kind: PowerAssertionKind, reason: String) throws {
+        acquireCalls.append(kind)
         if let acquireError {
             throw acquireError
         }
-        heldKinds.formUnion(kinds)
+        if failingAcquires.contains(kind) {
+            throw ScreenISOError.powerAssertionCreateFailed(kind: kind, ioReturn: -1)
+        }
+        heldKinds.insert(kind)
     }
 
-    func releaseAll() throws {
-        releaseCalls += 1
-        heldKinds.removeAll()
+    func release(_ kind: PowerAssertionKind) throws {
+        releaseCalls.append(kind)
+        heldKinds.remove(kind)
+        if failingReleases.contains(kind) {
+            throw ScreenISOError.powerAssertionReleaseFailed(kind: kind, ioReturn: -1)
+        }
     }
 }
 

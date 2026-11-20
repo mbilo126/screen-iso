@@ -4,7 +4,7 @@ import Testing
 @testable import ScreenISOCore
 
 @MainActor
-final class SessionHarness {
+final class ActivityHarness {
     static let startDate = Date(timeIntervalSince1970: 1_800_000_000)
 
     let power = FakePowerAssertions()
@@ -15,8 +15,7 @@ final class SessionHarness {
     let clock: ManualClock
     let directory: TemporaryDirectory
     let auditLog: FileAuditLog
-    let snapshotStore: FileSessionSnapshotStore
-    let controller: SessionController
+    let controller: ActivityController
 
     init(
         lid: FakeLidSleep = FakeLidSleep(),
@@ -29,17 +28,15 @@ final class SessionHarness {
         self.events = events
         directory = try TemporaryDirectory()
         auditLog = FileAuditLog(url: directory.file("Logs/audit.jsonl"))
-        snapshotStore = FileSessionSnapshotStore(url: directory.file("Support/session.json"))
-        let clock = ManualClock(SessionHarness.startDate)
+        let clock = ManualClock(ActivityHarness.startDate)
         self.clock = clock
-        controller = SessionController(
+        controller = ActivityController(
             powerAssertions: power,
             lidSleep: lid,
             lockPolicy: policy,
             screenLock: screen,
             lockEvents: events,
             auditLog: auditLog,
-            snapshotStore: snapshotStore,
             now: { clock.now() },
             sleep: sleep ?? { _ in clock.advance(by: 0.25) }
         )
@@ -54,8 +51,9 @@ final class SessionHarness {
         try auditEntries().map(\.event)
     }
 
-    var snapshotExists: Bool {
-        FileManager.default.fileExists(atPath: snapshotStore.url.path)
+    /// Puts a regular file where the log directory should be, so every audit write fails.
+    func breakAuditLog() throws {
+        try Data().write(to: auditLog.url.deletingLastPathComponent())
     }
 
     func cleanUp() {

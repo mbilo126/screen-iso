@@ -1,10 +1,8 @@
 import Foundation
 import ScreenISOCore
 
-/// Failures of the app layer: configuration, bundled resources and Finder or System Settings hand-offs.
+/// Failures of the app layer: bundled resources and Finder or System Settings hand-offs.
 enum AppError: Error, Equatable, Sendable {
-    case configurationUnreadable(message: String)
-    case configurationWriteFailed(message: String)
     case saverResourceMissing
     case saverInstallFailed(message: String)
     case saverHostReloadFailed(message: String)
@@ -13,8 +11,6 @@ enum AppError: Error, Equatable, Sendable {
 
     var code: String {
         switch self {
-        case .configurationUnreadable: "configuration_unreadable"
-        case .configurationWriteFailed: "configuration_write_failed"
         case .saverResourceMissing: "saver_resource_missing"
         case .saverInstallFailed: "saver_install_failed"
         case .saverHostReloadFailed: "saver_host_reload_failed"
@@ -25,8 +21,7 @@ enum AppError: Error, Equatable, Sendable {
 
     var detail: String {
         switch self {
-        case .configurationUnreadable(let message), .configurationWriteFailed(let message),
-            .saverInstallFailed(let message), .saverHostReloadFailed(let message):
+        case .saverInstallFailed(let message), .saverHostReloadFailed(let message):
             message
         case .saverResourceMissing:
             "ScreenISOSaver.saver not found in the app bundle"

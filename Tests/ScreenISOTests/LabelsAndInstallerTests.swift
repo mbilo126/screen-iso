@@ -195,3 +195,30 @@ struct LockScreenSettingsPaneTests {
         #expect(!LockScreenSettingsPane.hint.contains("Terminale"))
     }
 }
+
+@Suite("Menu bar icon")
+@MainActor
+struct MenuBarIconTests {
+    final class RecordingStore: MenuBarPositionStoring {
+        private(set) var values: [String: Double] = [:]
+
+        func set(_ value: Double, forKey defaultName: String) {
+            values[defaultName] = value
+        }
+    }
+
+    @Test("the saved position is the one AppKit reads for the first status item")
+    func savesPosition() {
+        let store = RecordingStore()
+
+        MenuBarIcon(store: store).savePositionNextToSystemIcons()
+
+        #expect(store.values == ["NSStatusItem Preferred Position Item-0": 1])
+    }
+
+    @Test("the notice says that the app restarts and what it switches off")
+    func notice() {
+        #expect(Labels.menuBarIconHiddenNotice.contains("riavvia"))
+        #expect(Labels.menuBarIconHiddenNotice.contains("caffeinate"))
+    }
+}

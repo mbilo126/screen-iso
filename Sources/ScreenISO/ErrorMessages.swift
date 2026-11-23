@@ -30,6 +30,7 @@ enum ErrorMessages {
             "Salvaschermo aggiornato, ma macOS userà la versione nuova solo dopo il prossimo riavvio della sessione",
         "settings_open_failed": "Impossibile aprire le Impostazioni di Sistema",
         "audit_log_missing": "Il registro non esiste ancora, verrà creato al primo evento",
+        "relaunch_failed": "Riavvio di ScreenISO non riuscito",
     ]
 
     static func message(forCode code: String, detail: String = "") -> String {

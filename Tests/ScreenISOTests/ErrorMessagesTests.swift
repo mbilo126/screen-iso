@@ -35,6 +35,7 @@ struct ErrorMessagesTests {
         .saverHostReloadFailed(message: "pkill: failed"),
         .settingsOpenFailed(url: ScreenSaverSettingsPane.wallpaper.url),
         .auditLogMissing(path: "/tmp/audit.jsonl"),
+        .relaunchFailed(message: "not found"),
     ]
 
     @Test("every Core error code has an Italian message", arguments: coreErrors)

@@ -5,6 +5,9 @@ enum Labels {
     static let allAssertionsTitle = "tutte"
     static let allAssertionsHelp = "Attiva o disattiva tutte le opzioni di caffeinate"
     static let sleepDisabledHelp = "Il Mac non va in stop nemmeno a coperchio chiuso (pmset disablesleep)"
+    static let showMenuBarIconTitle = "Mostra icona nella barra dei menu"
+    static let menuBarIconHiddenNotice =
+        "L'icona di ScreenISO non è visibile nella barra dei menu: la barra è piena. Il pulsante riavvia ScreenISO e mette l'icona accanto a quelle di sistema. Le opzioni di caffeinate attive vengono spente."
 
     static func title(of kind: PowerAssertionKind) -> String {
         let label =

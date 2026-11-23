@@ -32,6 +32,9 @@ struct PanelView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             refresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { _ in
+            model.refreshMenuBarIcon()
+        }
     }
 
     private func refresh() {
@@ -55,6 +58,9 @@ struct PanelContent: View {
             }
             if let error = model.displayedError {
                 NoticeLine(kind: .error, text: error.message)
+            }
+            if model.menuBarIconHidden {
+                MenuBarIconNotice(model: model)
             }
             systemContent
             Divider()
@@ -116,6 +122,20 @@ struct PanelContent: View {
 
     private func refresh() {
         Task { await model.refreshStatus() }
+    }
+}
+
+private struct MenuBarIconNotice: View {
+    let model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            NoticeLine(kind: .warning, text: Labels.menuBarIconHiddenNotice)
+            Button(Labels.showMenuBarIconTitle) {
+                Task { await model.showMenuBarIcon() }
+            }
+            .disabled(model.isBusy)
+        }
     }
 }
 

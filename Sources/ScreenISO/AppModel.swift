@@ -17,22 +17,29 @@ final class AppModel {
     private(set) var saverNeedsUpdate = false
     /// The value just requested from the SleepDisabled switch, shown until the system status is read again.
     private(set) var pendingSleepDisabled: Bool?
+    private(set) var menuBarIconHidden = false
 
     @ObservationIgnored private let statusReader: SystemStatusReader
     @ObservationIgnored private let sudoersInstaller: any SudoersRuleInstalling
     @ObservationIgnored private let saverInstaller: ScreenSaverInstaller
+    @ObservationIgnored private let menuBarIcon: MenuBarIcon
+    @ObservationIgnored private let relauncher: AppRelauncher
     @ObservationIgnored private var launched = false
 
     init(
         controller: ActivityController = .live(),
         statusReader: SystemStatusReader = .live(),
         sudoersInstaller: any SudoersRuleInstalling = AppleScriptSudoersInstaller(),
-        saverInstaller: ScreenSaverInstaller = ScreenSaverInstaller()
+        saverInstaller: ScreenSaverInstaller = ScreenSaverInstaller(),
+        menuBarIcon: MenuBarIcon = MenuBarIcon(),
+        relauncher: AppRelauncher = AppRelauncher()
     ) {
         self.controller = controller
         self.statusReader = statusReader
         self.sudoersInstaller = sudoersInstaller
         self.saverInstaller = saverInstaller
+        self.menuBarIcon = menuBarIcon
+        self.relauncher = relauncher
     }
 
     // MARK: - Derived state
@@ -64,9 +71,19 @@ final class AppModel {
         Task {
             await refreshStatus()
         }
+        Task {
+            // The status item is created after launch and its window takes a moment to report whether it is drawn.
+            try await Task.sleep(for: .seconds(2))
+            refreshMenuBarIcon()
+        }
+    }
+
+    func refreshMenuBarIcon() {
+        menuBarIconHidden = menuBarIcon.isHidden
     }
 
     func refreshStatus() async {
+        refreshMenuBarIcon()
         guard !isLoadingStatus else { return }
         isLoadingStatus = true
         defer { isLoadingStatus = false }
@@ -176,6 +193,31 @@ final class AppModel {
         } catch {
             actionError = DisplayedError(error)
         }
+    }
+
+    /// Brings the icon back into view. AppKit reads the position when it creates the icon, and removing and
+    /// inserting a `MenuBarExtra` again blocks the main thread on macOS 26.6: the app starts a new copy and quits.
+    func showMenuBarIcon() async {
+        actionError = nil
+        do {
+            try controller.setAllAssertions(active: false)
+        } catch {
+            AppLog.app.error("relaunch_release_failed code=\(ScreenISOError(error).code, privacy: .public)")
+            return
+        }
+        menuBarIcon.savePositionNextToSystemIcons()
+        busyAction = "Riavvio di ScreenISO"
+        do {
+            try await relauncher.launchNewInstance()
+        } catch {
+            busyAction = nil
+            let failure = DisplayedError(error)
+            AppLog.app.error("relaunch_failed code=\(failure.code, privacy: .public)")
+            actionError = failure
+            return
+        }
+        AppLog.app.info("app_relaunched")
+        NSApplication.shared.terminate(nil)
     }
 
     func openLockScreenSettings() {

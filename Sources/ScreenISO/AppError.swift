@@ -8,6 +8,7 @@ enum AppError: Error, Equatable, Sendable {
     case saverHostReloadFailed(message: String)
     case settingsOpenFailed(url: String)
     case auditLogMissing(path: String)
+    case relaunchFailed(message: String)
 
     var code: String {
         switch self {
@@ -16,12 +17,13 @@ enum AppError: Error, Equatable, Sendable {
         case .saverHostReloadFailed: "saver_host_reload_failed"
         case .settingsOpenFailed: "settings_open_failed"
         case .auditLogMissing: "audit_log_missing"
+        case .relaunchFailed: "relaunch_failed"
         }
     }
 
     var detail: String {
         switch self {
-        case .saverInstallFailed(let message), .saverHostReloadFailed(let message):
+        case .saverInstallFailed(let message), .saverHostReloadFailed(let message), .relaunchFailed(let message):
             message
         case .saverResourceMissing:
             "ScreenISOSaver.saver not found in the app bundle"

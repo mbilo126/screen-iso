@@ -37,7 +37,7 @@ make build
 Produce `build/ScreenISO.app`, che contiene:
 
 - `Contents/MacOS/ScreenISO`, compilato in release (solo arm64: senza Xcode SwiftPM non produce binari universali);
-- `Contents/Info.plist` con bundle id `it.yellowtech.screeniso`, versione 0.1.1, `LSUIElement` attivo (nessuna icona nel Dock);
+- `Contents/Info.plist` con bundle id `it.yellowtech.screeniso`, versione 0.1.2, `LSUIElement` attivo (nessuna icona nel Dock);
 - `Contents/Resources/AppIcon.icns`, l'icona dell'app;
 - `Contents/Resources/ScreenISOSaver.saver`, compilato da `Saver/build.sh`.
 

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">ScreenISO</title>
+  <rect width="512" height="512" rx="116" fill="#15171C"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="100" y="116" width="312" height="208" rx="28"/>
+    <path d="M256 324V396M196 396H316"/>
+  </g>
+  <g fill="#FFD60A">
+    <circle cx="256" cy="207" r="28"/>
+    <path d="M244 217L234 261H278L268 217Z"/>
+  </g>
+</svg>

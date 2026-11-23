@@ -1,3 +1,5 @@
+<img src="assets/logo.svg" width="96" alt="Logo di ScreenISO">
+
 # ScreenISO
 
 App per la barra dei menu di macOS. Serve quando un processo lungo (per esempio Claude Code) deve continuare a lavorare mentre l'utente è lontano dal Mac: dal pannello si scelgono le attività che tengono sveglio il Mac e si blocca lo schermo con il blocco nativo di macOS. Le due cose sono indipendenti: le attività restano attive finché non vengono spente, a schermo sbloccato come a schermo bloccato. Ogni cambio e ogni blocco vengono scritti in un registro di audit utilizzabile come evidenza per ISO 27001.

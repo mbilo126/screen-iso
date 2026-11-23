@@ -35,7 +35,7 @@ make build
 Produce `build/ScreenISO.app`, che contiene:
 
 - `Contents/MacOS/ScreenISO`, compilato in release (solo arm64: senza Xcode SwiftPM non produce binari universali);
-- `Contents/Info.plist` con bundle id `it.yellowtech.screeniso`, versione 0.1.0, `LSUIElement` attivo (nessuna icona nel Dock);
+- `Contents/Info.plist` con bundle id `it.yellowtech.screeniso`, versione 0.1.1, `LSUIElement` attivo (nessuna icona nel Dock);
 - `Contents/Resources/ScreenISOSaver.saver`, compilato da `Saver/build.sh`.
 
 Lo script `scripts/bundle.sh` si ferma al primo passo che fallisce. La firma è ad-hoc: prima il salvaschermo annidato, poi l'app, infine `codesign --verify --deep --strict`.

@@ -217,9 +217,8 @@ private struct ActivitySection: View {
             if status.sleepDisabled {
                 NoticeLine(
                     kind: .warning,
-                    text: "SleepDisabled è attivo e senza la regola sudoers si disattiva solo dal Terminale."
+                    text: "SleepDisabled è attivo: per disattivarlo da qui installa la regola."
                 )
-                CommandSnippet(command: Labels.restoreSleepCommand, copy: model.copyToPasteboard)
             }
             Text(
                 "Per cambiare SleepDisabled serve una regola sudoers che consente solo pmset -a disablesleep 0 e 1 senza password."
@@ -256,9 +255,12 @@ private struct LockSection: View {
                 NoticeLine(
                     kind: .warning,
                     text:
-                        "macOS non chiede la password subito dopo il blocco (impostazione attuale: \(Labels.description(of: status.screenLockPolicy))). ScreenISO non cambia questa impostazione: eseguila nel Terminale."
+                        "macOS non chiede la password subito dopo il blocco (impostazione attuale: \(Labels.description(of: status.screenLockPolicy))). "
+                        + LockScreenSettingsPane.hint
                 )
-                CommandSnippet(command: Labels.screenLockFixCommand, copy: model.copyToPasteboard)
+                Button(LockScreenSettingsPane.openButtonTitle) {
+                    model.openLockScreenSettings()
+                }
             }
             if !status.lockSymbolResolvable {
                 NoticeLine(kind: .error, text: "La funzione di blocco di macOS non è disponibile.")

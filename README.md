@@ -15,7 +15,7 @@ Fa:
 Non fa:
 
 - non mostra una schermata di blocco propria: password e Touch ID sono gestiti da macOS (loginwindow);
-- non cambia l'impostazione "Richiedi la password subito": la controlla e indica il comando da eseguire;
+- non cambia l'impostazione che fa chiedere la password subito dopo il blocco: la controlla e apre il pannello delle Impostazioni di Sistema dove si cambia;
 - non spegne le attività da sola: né allo sblocco, né a tempo;
 - non sorveglia il processo che sta lavorando;
 - non si avvia al login.
@@ -64,7 +64,7 @@ Stampa un JSON con la politica di blocco, lo stato di `SleepDisabled`, la regola
 brew install --cask mbilo126/screeniso/screeniso
 ```
 
-Installa `ScreenISO.app` in `/Applications` da una release di questo repository. Il nome completo aggiunge il tap `mbilo126/screeniso` e autorizza solo questo cask. Serve un Mac Apple silicon con macOS 14 o successivo. Per aggiornare:
+Installa `ScreenISO.app` in `/Applications` da una release di questo repository. Il nome completo aggiunge il tap `mbilo126/screeniso` e autorizza solo questo cask. Serve un Mac Apple silicon con macOS 14 o successivo. È l'unico comando da eseguire nel Terminale: l'app si apre da Spotlight o dalla cartella Applicazioni e il resto si fa dal pannello. Per aggiornare:
 
 ```sh
 brew update && brew upgrade --cask screeniso
@@ -84,13 +84,7 @@ Aprendo l'app compare una finestra con il pannello e l'icona `lock.shield` nella
 
 Il pannello ha due sezioni, Attività e Blocco. Quello che manca compare come avviso dentro la sezione che ne ha bisogno.
 
-1. **Password subito al blocco.** Se macOS concede un ritardo prima di chiedere la password, lo schermo bloccato potrebbe riaprirsi senza autenticazione. Finché è così i due pulsanti di blocco restano disattivati. ScreenISO non modifica questa impostazione: copia il comando dal pannello ed eseguilo nel Terminale.
-
-   ```sh
-   sysadminctl -screenLock immediate -password -
-   ```
-
-   Il comando chiede la password dell'utente. Poi riapri il pannello: l'avviso sparisce.
+1. **Password subito al blocco.** Se macOS concede un ritardo prima di chiedere la password, lo schermo bloccato potrebbe riaprirsi senza autenticazione. Finché è così i due pulsanti di blocco restano disattivati. ScreenISO non modifica questa impostazione: "Apri Impostazioni Schermata di blocco" apre il pannello delle Impostazioni di Sistema, dove la richiesta della password dopo l'avvio del salvaschermo o lo spegnimento dello schermo va impostata su "Immediatamente". Tornando al pannello di ScreenISO l'avviso sparisce.
 
 2. **Salvaschermo (facoltativo).** Serve solo per il pulsante "Salvaschermo". "Installa salvaschermo" copia il `.saver` incluso nell'app in `~/Library/Screen Savers/` e apre le Impostazioni di Sistema, dove va selezionato "ScreenISO" nella sezione Altro. Su macOS 26 la scelta sta in Sfondo, dietro il pulsante "Salvaschermo…"; fino a macOS 15 c'è un pannello Salvaschermo a sé. Installarlo non basta: il pulsante avvia il salvaschermo selezionato nelle Impostazioni, qualunque sia. Finché ScreenISO non risulta selezionato, il pannello mostra un avviso con il percorso e il pulsante per aprire il pannello giusto. Dopo una nuova build dell'app, se il salvaschermo installato è diverso da quello incluso, il pannello lo segnala e offre "Aggiorna salvaschermo": sostituisce la copia installata e termina il processo `legacyScreenSaver` dell'utente, che macOS riavvia da solo con il codice nuovo.
 
@@ -112,7 +106,7 @@ La riga `caffeinate` ha una casella per ogni opzione. Spuntarla crea subito l'as
 
 `caffeinate -u` da solo scade dopo 5 secondi; qui l'assertion resta finché la casella è spuntata.
 
-L'interruttore `SleepDisabled` esegue `sudo -n /usr/bin/pmset -a disablesleep 1` o `0`. Con il valore a 1 il Mac non va in stop nemmeno a coperchio chiuso. Richiede la regola sudoers; senza, l'interruttore è disattivato e, se `SleepDisabled` risulta comunque attivo (impostato dal Terminale), il pannello indica il comando per riattivare lo stop.
+L'interruttore `SleepDisabled` esegue `sudo -n /usr/bin/pmset -a disablesleep 1` o `0`. Con il valore a 1 il Mac non va in stop nemmeno a coperchio chiuso. Richiede la regola sudoers; senza, l'interruttore è disattivato. Se `SleepDisabled` risulta comunque attivo (impostato dal Terminale), il pannello lo segnala: installata la regola, si disattiva dall'interruttore.
 
 Niente spegne le attività in automatico. Durata:
 

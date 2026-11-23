@@ -44,21 +44,3 @@ struct NoticeLine: View {
         }
     }
 }
-
-struct CommandSnippet: View {
-    let command: String
-    let copy: (String) -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(command)
-                .font(.system(.callout, design: .monospaced))
-                .textSelection(.enabled)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
-            Button("Copia comando") { copy(command) }
-                .controlSize(.small)
-        }
-    }
-}

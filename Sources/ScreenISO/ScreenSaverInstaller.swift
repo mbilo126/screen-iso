@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import ScreenISOCore
 
@@ -106,10 +105,7 @@ struct ScreenSaverInstaller {
     }
 
     func openSettings() throws {
-        guard let url = URL(string: pane.url), NSWorkspace.shared.open(url) else {
-            AppLog.app.error("settings_open_failed url=\(pane.url, privacy: .public)")
-            throw AppError.settingsOpenFailed(url: pane.url)
-        }
+        try SystemSettings.open(pane.url)
     }
 
     private func removeStagedCopy(_ staged: URL) {

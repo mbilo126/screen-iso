@@ -183,3 +183,15 @@ struct ScreenSaverSettingsPaneTests {
         #expect(pane.openButtonTitle == "Apri Impostazioni Salvaschermo")
     }
 }
+
+@Suite("Lock screen settings pane")
+struct LockScreenSettingsPaneTests {
+    @Test("the password delay is fixed in the Lock Screen pane, never with a Terminal command")
+    func pane() {
+        #expect(LockScreenSettingsPane.url == "x-apple.systempreferences:com.apple.Lock-Screen-Settings.extension")
+        #expect(LockScreenSettingsPane.openButtonTitle == "Apri Impostazioni Schermata di blocco")
+        #expect(LockScreenSettingsPane.hint.contains("Schermata di blocco"))
+        #expect(LockScreenSettingsPane.hint.contains("Immediatamente"))
+        #expect(!LockScreenSettingsPane.hint.contains("Terminale"))
+    }
+}

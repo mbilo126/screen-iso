@@ -178,6 +178,15 @@ final class AppModel {
         }
     }
 
+    func openLockScreenSettings() {
+        actionError = nil
+        do {
+            try SystemSettings.open(LockScreenSettingsPane.url)
+        } catch {
+            actionError = DisplayedError(error)
+        }
+    }
+
     func openAuditLog() {
         let url = FileAuditLog.defaultURL
         guard FileManager.default.fileExists(atPath: url.path) else {
@@ -185,12 +194,6 @@ final class AppModel {
             return
         }
         NSWorkspace.shared.activateFileViewerSelecting([url])
-    }
-
-    func copyToPasteboard(_ text: String) {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
     }
 
     /// Releases the assertions first, so the audit log records that they ended with the app. A failure is shown

@@ -2,8 +2,6 @@ import Foundation
 import ScreenISOCore
 
 enum Labels {
-    static let screenLockFixCommand = "sysadminctl -screenLock immediate -password -"
-    static let restoreSleepCommand = "sudo pmset -a disablesleep 0"
     static let allAssertionsTitle = "tutte"
     static let allAssertionsHelp = "Attiva o disattiva tutte le opzioni di caffeinate"
     static let sleepDisabledHelp = "Il Mac non va in stop nemmeno a coperchio chiuso (pmset disablesleep)"

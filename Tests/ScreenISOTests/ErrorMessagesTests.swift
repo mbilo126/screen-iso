@@ -36,6 +36,8 @@ struct ErrorMessagesTests {
         .settingsOpenFailed(url: ScreenSaverSettingsPane.wallpaper.url),
         .auditLogMissing(path: "/tmp/audit.jsonl"),
         .relaunchFailed(message: "not found"),
+        .updateCheckFailed(message: "HTTP 500"),
+        .updateInstallFailed(message: "Error: permission denied"),
     ]
 
     @Test("every Core error code has an Italian message", arguments: coreErrors)

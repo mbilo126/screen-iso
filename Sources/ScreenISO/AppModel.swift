@@ -6,6 +6,8 @@ import ScreenISOCore
 @MainActor
 @Observable
 final class AppModel {
+    static let updateCheckInterval: Duration = .seconds(86_400)
+
     let controller: ActivityController
 
     private(set) var status: SystemStatus?
@@ -18,12 +20,14 @@ final class AppModel {
     /// The value just requested from the SleepDisabled switch, shown until the system status is read again.
     private(set) var pendingSleepDisabled: Bool?
     private(set) var menuBarIconHidden = false
+    private(set) var availableUpdate: AppVersion?
 
     @ObservationIgnored private let statusReader: SystemStatusReader
     @ObservationIgnored private let sudoersInstaller: any SudoersRuleInstalling
     @ObservationIgnored private let saverInstaller: ScreenSaverInstaller
     @ObservationIgnored private let menuBarIcon: MenuBarIcon
     @ObservationIgnored private let relauncher: AppRelauncher
+    @ObservationIgnored private let updater: AppUpdater
     @ObservationIgnored private var launched = false
 
     init(
@@ -32,7 +36,8 @@ final class AppModel {
         sudoersInstaller: any SudoersRuleInstalling = AppleScriptSudoersInstaller(),
         saverInstaller: ScreenSaverInstaller = ScreenSaverInstaller(),
         menuBarIcon: MenuBarIcon = MenuBarIcon(),
-        relauncher: AppRelauncher = AppRelauncher()
+        relauncher: AppRelauncher = AppRelauncher(),
+        updater: AppUpdater = AppUpdater()
     ) {
         self.controller = controller
         self.statusReader = statusReader
@@ -40,6 +45,7 @@ final class AppModel {
         self.saverInstaller = saverInstaller
         self.menuBarIcon = menuBarIcon
         self.relauncher = relauncher
+        self.updater = updater
     }
 
     // MARK: - Derived state
@@ -75,6 +81,9 @@ final class AppModel {
             // The status item is created after launch and its window takes a moment to report whether it is drawn.
             try await Task.sleep(for: .seconds(2))
             refreshMenuBarIcon()
+        }
+        Task {
+            await watchForUpdates()
         }
     }
 
@@ -199,13 +208,65 @@ final class AppModel {
     /// inserting a `MenuBarExtra` again blocks the main thread on macOS 26.6: the app starts a new copy and quits.
     func showMenuBarIcon() async {
         actionError = nil
+        menuBarIcon.savePositionNextToSystemIcons()
+        await relaunch()
+    }
+
+    // MARK: - Updates
+
+    private func watchForUpdates() async {
+        guard updater.isManagedByHomebrew else {
+            AppLog.app.info("update_check_skipped reason=not_installed_by_homebrew")
+            return
+        }
+        while !Task.isCancelled {
+            await checkForUpdate()
+            do {
+                try await Task.sleep(for: Self.updateCheckInterval)
+            } catch {
+                return
+            }
+        }
+    }
+
+    func checkForUpdate() async {
+        do {
+            availableUpdate = try await updater.availableUpdate()
+            AppLog.app.info("update_checked available=\(self.availableUpdate?.description ?? "none", privacy: .public)")
+        } catch {
+            // Nobody asked for this check and the panel has nothing to offer about it: the failure goes to the log.
+            AppLog.app.error("update_check_failed code=\(DisplayedError(error).code, privacy: .public)")
+        }
+    }
+
+    /// Installs on request only. The assertions stay active while `brew` works and are released at the restart.
+    func installUpdate() async {
+        guard let version = availableUpdate else { return }
+        actionError = nil
+        busyAction = "Aggiornamento alla \(version)"
+        do {
+            try await updater.install()
+        } catch {
+            busyAction = nil
+            let failure = DisplayedError(error)
+            AppLog.app.error("update_install_failed code=\(failure.code, privacy: .public)")
+            actionError = failure
+            return
+        }
+        AppLog.app.info("update_installed version=\(version.description, privacy: .public)")
+        availableUpdate = nil
+        await relaunch()
+    }
+
+    /// Releases the assertions first, as `quit()` does, then starts a new copy of the app and quits this one.
+    private func relaunch() async {
         do {
             try controller.setAllAssertions(active: false)
         } catch {
+            busyAction = nil
             AppLog.app.error("relaunch_release_failed code=\(ScreenISOError(error).code, privacy: .public)")
             return
         }
-        menuBarIcon.savePositionNextToSystemIcons()
         busyAction = "Riavvio di ScreenISO"
         do {
             try await relauncher.launchNewInstance()

@@ -20,6 +20,7 @@ Non fa:
 - non cambia l'impostazione che fa chiedere la password subito dopo il blocco: la controlla e apre il pannello delle Impostazioni di Sistema dove si cambia;
 - non spegne le attività da sola: né allo sblocco, né a tempo;
 - non sorveglia il processo che sta lavorando;
+- non installa aggiornamenti da sola: li segnala nel pannello e li installa quando lo chiedi;
 - non si avvia al login.
 
 ## Requisiti
@@ -76,11 +77,13 @@ Installa `ScreenISO.app` in `/Applications` da una release di questo repository.
 brew update && brew upgrade --cask screeniso
 ```
 
+La copia installata con Homebrew controlla da sola se c'è una versione nuova: all'avvio e poi una volta al giorno legge la versione scritta nel cask del tap. È una richiesta HTTPS a `raw.githubusercontent.com` che non invia dati dell'utente e non lascia cookie né cache. Quando la versione nel tap è più recente, il pannello mostra il pulsante "Aggiorna alla <versione>", che esegue `brew upgrade --cask mbilo126/screeniso/screeniso` e riavvia ScreenISO. Niente viene installato senza quel clic: il riavvio spegne le opzioni di `caffeinate` attive, che vanno riattivate; `SleepDisabled` resta com'è.
+
 Prima di disinstallare, togli la regola sudoers dal pannello ("Rimuovi regola sudoers"): `brew uninstall` non la rimuove.
 
 ### Dal sorgente
 
-Dopo `make build`, copia `build/ScreenISO.app` in `/Applications`. Un'app compilata in locale non ha l'attributo di quarantena, quindi Gatekeeper non la blocca. Se copi a mano l'app compilata su un altro Mac, macOS la blocca al primo avvio: va autorizzata da Impostazioni di Sistema, Privacy e sicurezza, "Apri comunque".
+Dopo `make build`, copia `build/ScreenISO.app` in `/Applications`. Un'app compilata in locale non ha l'attributo di quarantena, quindi Gatekeeper non la blocca. Se copi a mano l'app compilata su un altro Mac, macOS la blocca al primo avvio: va autorizzata da Impostazioni di Sistema, Privacy e sicurezza, "Apri comunque". Una copia compilata dal sorgente non controlla gli aggiornamenti: si aggiorna con `git pull` e `make build`.
 
 ### Dopo l'installazione
 
@@ -200,6 +203,8 @@ Il pannello e `--status` controllano solo che il file della regola esista, senza
 
 **Installazione con Homebrew.** Il cask toglie l'attributo di quarantena dall'app dopo averla installata (`xattr -cr`), perché senza notarizzazione Gatekeeper ne bloccherebbe l'avvio. In questo modo macOS non controlla l'app: l'unica verifica è lo `sha256` dello zip scritto nel cask, che garantisce che il file scaricato sia quello pubblicato nella release, non chi l'ha compilato. Chi non vuole fidarsi del binario può compilare dal sorgente.
 
+**Aggiornamenti.** Il controllo legge solo la versione scritta nel cask del tap. L'installazione passa da `brew upgrade`, quindi dalla stessa verifica dell'installazione: lo `sha256` dello zip scritto nel cask. ScreenISO non scarica e non sostituisce file per conto suo. Chi controlla il tap decide che cosa viene installato: per questo l'aggiornamento parte solo su richiesta.
+
 ## Limiti noti
 
 - **Attività dimenticate.** Un'attività lasciata attiva resta attiva: con `-d` o `-u` lo schermo non si spegne mai, con `SleepDisabled` il Mac non va in stop nemmeno nello zaino. L'icona piena nella barra dei menu lo ricorda.
@@ -209,6 +214,7 @@ Il pannello e `--status` controllano solo che il file della regola esista, senza
 - **Pulsante Salvaschermo.** Su macOS 26.6.2 `ScreenSaverEngine` con la password immediata porta a uno schermo che macOS segnala come bloccato (nel registro `lockMethod` è `screenSaver`). Se su un'altra versione non lo facesse, ScreenISO ripiega sul blocco diretto e il registro riporta `loginWindowFallback`.
 - **Salvaschermo selezionato.** macOS non offre un'API per sapere quale salvaschermo è scelto nelle Impostazioni. ScreenISO cerca il nome del proprio bundle nell'archivio privato degli sfondi (`~/Library/Application Support/com.apple.wallpaper/Store/Index.plist`): è un controllo indicativo, che non disattiva il pulsante.
 - **Icona nella barra dei menu.** macOS legge la posizione di un'icona solo quando la crea, dalla preferenza non documentata `NSStatusItem Preferred Position Item-0` dell'app. Il pulsante "Mostra icona nella barra dei menu" scrive quella preferenza e riavvia l'app. Provato su macOS 26.6.2 con una barra piena: l'icona passa da dietro il notch a visibile, e al suo posto macOS nasconde l'icona più a sinistra di un'altra app. Togliere e rimettere l'icona senza riavviare non è praticabile: su macOS 26.6.2 blocca l'app.
+- **Aggiornamento dal pannello.** Vale solo per la copia in `/Applications` installata con Homebrew nel prefisso standard `/opt/homebrew`. Il percorso completo (clic, `brew upgrade`, riavvio) non è ancora stato provato su un'installazione reale: i test coprono il confronto delle versioni e la chiamata a `brew` con dei fake. Se `brew` chiede la password di amministratore l'aggiornamento fallisce e il pannello mostra l'errore: in quel caso si aggiorna dal Terminale.
 - **Assertion `-s`.** `caffeinate -s` ha effetto solo con l'alimentatore collegato.
 - **Assertion `-u`.** Verificato su macOS 26.6.2 che l'assertion `UserIsActive` creata senza timeout resta attiva e senza scadenza; non è stata provata per ore.
 - **Regola sudoers.** Provata su macOS 26.6.2: la regola passa `visudo`, viene installata in `/etc/sudoers.d/screeniso` e l'interruttore imposta `disablesleep` a 1 e a 0. Non è verificato come `osascript` si comporta in tutti i casi di annullamento del prompt: l'app riconosce l'errore AppleScript `-128` come annullamento e tratta ogni altro codice come errore.

@@ -9,6 +9,14 @@ enum Labels {
     static let menuBarIconHiddenNotice =
         "L'icona di ScreenISO non è visibile nella barra dei menu: la barra è piena. Il pulsante riavvia ScreenISO e mette l'icona accanto a quelle di sistema. Le opzioni di caffeinate attive vengono spente."
 
+    static func updateButtonTitle(_ version: AppVersion) -> String {
+        "Aggiorna alla \(version)"
+    }
+
+    static func updateNotice(_ version: AppVersion) -> String {
+        "È disponibile ScreenISO \(version). L'aggiornamento passa da Homebrew e riavvia ScreenISO: le opzioni di caffeinate attive vengono spente."
+    }
+
     static func title(of kind: PowerAssertionKind) -> String {
         let label =
             switch kind {

@@ -59,6 +59,9 @@ struct PanelContent: View {
             if let error = model.displayedError {
                 NoticeLine(kind: .error, text: error.message)
             }
+            if let version = model.availableUpdate {
+                UpdateNotice(model: model, version: version)
+            }
             if model.menuBarIconHidden {
                 MenuBarIconNotice(model: model)
             }
@@ -122,6 +125,21 @@ struct PanelContent: View {
 
     private func refresh() {
         Task { await model.refreshStatus() }
+    }
+}
+
+private struct UpdateNotice: View {
+    let model: AppModel
+    let version: AppVersion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            NoticeLine(kind: .info, text: Labels.updateNotice(version))
+            Button(Labels.updateButtonTitle(version)) {
+                Task { await model.installUpdate() }
+            }
+            .disabled(model.isBusy)
+        }
     }
 }
 

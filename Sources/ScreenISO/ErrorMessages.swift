@@ -31,6 +31,8 @@ enum ErrorMessages {
         "settings_open_failed": "Impossibile aprire le Impostazioni di Sistema",
         "audit_log_missing": "Il registro non esiste ancora, verrà creato al primo evento",
         "relaunch_failed": "Riavvio di ScreenISO non riuscito",
+        "update_check_failed": "Controllo degli aggiornamenti non riuscito",
+        "update_install_failed": "Aggiornamento non riuscito",
     ]
 
     static func message(forCode code: String, detail: String = "") -> String {

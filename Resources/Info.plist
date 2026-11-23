@@ -8,6 +8,8 @@
 	<string>ScreenISO</string>
 	<key>CFBundleExecutable</key>
 	<string>ScreenISO</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>it.yellowtech.screeniso</string>
 	<key>CFBundleInfoDictionaryVersion</key>

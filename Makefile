@@ -1,4 +1,4 @@
-.PHONY: lint format test build clean
+.PHONY: lint format test build release clean
 
 SWIFT_SOURCES := Package.swift Sources Tests
 
@@ -22,6 +22,10 @@ test:
 # Release binary plus build/ScreenISO.app with the bundled screen saver, signed ad-hoc.
 build:
 	./scripts/bundle.sh
+
+# Publishes the version in Resources/Info.plist: GitHub Release plus the Homebrew cask. See scripts/release.sh.
+release:
+	./scripts/release.sh
 
 clean:
 	rm -rf .build build Saver/build

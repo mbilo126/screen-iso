@@ -58,7 +58,27 @@ Stampa un JSON con la politica di blocco, lo stato di `SleepDisabled`, la regola
 
 ## Installazione
 
-Copia `build/ScreenISO.app` in `/Applications` e aprila. Si apre una finestra con il pannello e compare l'icona `lock.shield` nella barra dei menu, da cui si riapre lo stesso pannello. L'icona è piena finché almeno un'attività tiene sveglio il Mac. L'app non ha icona nel Dock: chiudere la finestra non la termina, e aprirla di nuovo dal Finder o da Spotlight rimostra la finestra. Un'app compilata in locale non ha l'attributo di quarantena, quindi Gatekeeper non la blocca; se la copi da un altro Mac, aprila la prima volta con clic destro e "Apri".
+### Con Homebrew
+
+```sh
+brew install --cask mbilo126/screeniso/screeniso
+```
+
+Installa `ScreenISO.app` in `/Applications` da una release di questo repository. Il nome completo aggiunge il tap `mbilo126/screeniso` e autorizza solo questo cask. Serve un Mac Apple silicon con macOS 14 o successivo. Per aggiornare:
+
+```sh
+brew update && brew upgrade --cask screeniso
+```
+
+Prima di disinstallare, togli la regola sudoers dal pannello ("Rimuovi regola sudoers"): `brew uninstall` non la rimuove.
+
+### Dal sorgente
+
+Dopo `make build`, copia `build/ScreenISO.app` in `/Applications`. Un'app compilata in locale non ha l'attributo di quarantena, quindi Gatekeeper non la blocca. Se copi a mano l'app compilata su un altro Mac, macOS la blocca al primo avvio: va autorizzata da Impostazioni di Sistema, Privacy e sicurezza, "Apri comunque".
+
+### Dopo l'installazione
+
+Aprendo l'app compare una finestra con il pannello e l'icona `lock.shield` nella barra dei menu, da cui si riapre lo stesso pannello. L'icona è piena finché almeno un'attività tiene sveglio il Mac. L'app non ha icona nel Dock: chiudere la finestra non la termina, e aprirla di nuovo dal Finder o da Spotlight rimostra la finestra.
 
 ## Primo avvio
 
@@ -109,6 +129,26 @@ I pulsanti "Schermata di blocco" e "Salvaschermo" bloccano subito lo schermo. Le
 
 Vengono registrati solo i blocchi avviati dal pannello, non quelli fatti con la scorciatoia di macOS o partiti per inattività.
 
+## Rilascio
+
+La versione sta in `Resources/Info.plist` (`CFBundleShortVersionString`). Per pubblicarne una nuova si aggiorna quel valore, si committa su `main` e si esegue:
+
+```sh
+make release
+```
+
+`scripts/release.sh` controlla di essere su `main` con l'albero pulito, compila l'app, crea `build/ScreenISO-<versione>.zip`, verifica che l'app estratta dallo zip abbia ancora una firma valida, crea il tag `v<versione>` e la release su GitHub con lo zip allegato. Poi rigenera il cask dal modello `packaging/homebrew/screeniso.rb.in` e lo pubblica nel tap `mbilo126/homebrew-screeniso`. Se la release esiste già ma il tap è rimasto indietro, lo stesso comando aggiorna solo il tap.
+
+Le chiamate a GitHub usano il token che `gh` ha salvato per l'account `mbilo126`, anche quando l'account attivo è un altro: non serve `gh auth switch`.
+
+Per provare tutto senza pubblicare niente:
+
+```sh
+./scripts/release.sh --dry-run
+```
+
+Lascia lo zip e il cask generato in `build/`.
+
 ## Registro di audit
 
 Percorso: `~/Library/Logs/ScreenISO/audit.jsonl`. "Apri registro" lo mostra nel Finder.
@@ -155,6 +195,8 @@ Consente all'utente che l'ha installata di eseguire senza password solo quei due
 Il pannello e `--status` controllano solo che il file della regola esista, senza invocare `sudo`: un tentativo `sudo -n` negato finisce nel log di sistema e sembrerebbe un'escalation fallita. La verifica vera (`sudo -n -l`, che non chiede password e non esegue nulla) avviene a ogni cambio dell'interruttore `SleepDisabled`.
 
 **Firma ad-hoc.** L'app e il salvaschermo sono firmati ad-hoc, senza identità di sviluppatore né notarizzazione. L'integrità del bundle è verificabile con `codesign --verify --deep --strict build/ScreenISO.app`, ma la firma non identifica chi l'ha prodotto: chi installa l'app deve compilarla da sé o fidarsi di chi gliel'ha data.
+
+**Installazione con Homebrew.** Il cask toglie l'attributo di quarantena dall'app dopo averla installata (`xattr -cr`), perché senza notarizzazione Gatekeeper ne bloccherebbe l'avvio. In questo modo macOS non controlla l'app: l'unica verifica è lo `sha256` dello zip scritto nel cask, che garantisce che il file scaricato sia quello pubblicato nella release, non chi l'ha compilato. Chi non vuole fidarsi del binario può compilare dal sorgente.
 
 ## Limiti noti
 

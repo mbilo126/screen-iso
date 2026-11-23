@@ -10,6 +10,7 @@ REPO="mbilo126/screen-iso"
 TAP_REPO="mbilo126/homebrew-screeniso"
 CASK_NAME="screeniso"
 GH_ACCOUNT="mbilo126"
+REPO_URL="https://github.com/${REPO}.git"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
@@ -105,6 +106,9 @@ if [[ "${DRY_RUN}" == 0 ]]; then
     [[ "${branch}" == "main" ]] || fail "not on main (on '${branch}')"
     [[ -z "$(git status --porcelain)" ]] || fail "working tree not clean: commit or stash first"
 
+    # origin can be another copy of the project that has never seen the release tags.
+    git_as_account fetch --quiet "${REPO_URL}" 'refs/tags/*:refs/tags/*'
+
     tag_exists=0
     release_exists=0
     git rev-parse --quiet --verify "refs/tags/${TAG}" >/dev/null && tag_exists=1
@@ -151,10 +155,10 @@ if [[ "${DRY_RUN}" == 1 ]]; then
     exit 0
 fi
 
-step "push main, tag ${TAG}"
-git_as_account push origin main
+step "push main and ${TAG} to ${REPO}"
+git_as_account push "${REPO_URL}" main
 git tag -a "${TAG}" -m "ScreenISO ${TAG}"
-git_as_account push origin "${TAG}"
+git_as_account push "${REPO_URL}" "${TAG}"
 
 step "create the GitHub release"
 notes="$(mktemp)"

@@ -139,7 +139,7 @@ make release
 
 `scripts/release.sh` controlla di essere su `main` con l'albero pulito, compila l'app, crea `build/ScreenISO-<versione>.zip`, verifica che l'app estratta dallo zip abbia ancora una firma valida, crea il tag `v<versione>` e la release su GitHub con lo zip allegato. Poi rigenera il cask dal modello `packaging/homebrew/screeniso.rb.in` e lo pubblica nel tap `mbilo126/homebrew-screeniso`. Se la release esiste già ma il tap è rimasto indietro, lo stesso comando aggiorna solo il tap.
 
-Le chiamate a GitHub usano il token che `gh` ha salvato per l'account `mbilo126`, anche quando l'account attivo è un altro: non serve `gh auth switch`.
+Le chiamate a GitHub usano il token che `gh` ha salvato per l'account `mbilo126`, anche quando l'account attivo è un altro: non serve `gh auth switch`. `main` e il tag vengono inviati a `mbilo126/screen-iso` qualunque sia `origin` della copia locale, e i tag già pubblicati vengono letti da lì.
 
 Per provare tutto senza pubblicare niente:
 
